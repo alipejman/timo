@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Timo Checklist</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/jalali-moment/dist/jalali-moment.browser.js"></script>
+<style>
+  :root{
+    --bg1:#f6d365; --bg2:#fda085;
+    --ink:#2a2a2a; --card:rgba(255,255,255,.96); --ring:rgba(0,0,0,.08);
+    --chip:#f3f4f6; --chip-b:#e5e7eb; --ok:#10b981; --warn:#f59e0b; --del:#ef4444; --def:#6366f1;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;min-height:100vh;background:linear-gradient(135deg,var(--bg1),var(--bg2));font-family:'Vazirmatn',sans-serif}
+  a.back-btn{position:fixed;right:22px;top:22px;background:rgba(0,0,0,.35);color:#fff;text-decoration:none;padding:8px 14px;border-radius:999px;font-weight:700}
+  #date{text-align:center;color:#fff;font-weight:800;margin-top:30px;text-shadow:0 2px 10px rgba(0,0,0,.25)}
+  .wrap{width:min(920px,92vw);margin:90px auto 60px}
+  .cardx{background:var(--card);border-radius:28px;box-shadow:0 18px 40px rgba(0,0,0,.25);padding:20px}
+  .topbar{display:flex;align-items:center;gap:10px;justify-content:space-between;flex-wrap:wrap}
+  .group{display:flex;align-items:center;gap:8px}
+  .btn-pill{border:none;background:#1f2937;color:#fff;border-radius:999px;padding:10px 16px;font-weight:800;display:flex;align-items:center;gap:8px;cursor:pointer;box-shadow:0 6px 16px rgba(0,0,0,.18)}
+  .progress-outer{background:#eee;border-radius:16px;height:20px;overflow:hidden}
+  .progress-inner{height:100%;width:0%;background:linear-gradient(90deg,#f6d365,#fda085);transition:width .2s}
+  .badge-soft{background:#00000010;border:1px solid #00000015;padding:2px 8px;border-radius:999px;font-size:12px;color:#555}
+  ul#list{list-style:none;margin:12px 0 0;padding:0}
+  li.task{display:flex;align-items:center;gap:10px;padding:12px;border-radius:16px;border:1px dashed #eee;background:#fff;margin-bottom:10px}
+  li.task.done{opacity:.5}
+  .check{appearance:none;width:22px;height:22px;border:2px solid #777;border-radius:6px;cursor:pointer;position:relative;flex:0 0 22px}
+  .check:checked{border-color:transparent;background:linear-gradient(135deg,#34d399,#10b981)}
+  .check:checked::after{content:"✓";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:900;font-size:15px}
+  .txt{flex:1;border:none;outline:none;background:transparent;font-size:16px;color:var(--ink);padding:6px 10px}
+  .del{border:none;background:transparent;cursor:pointer;font-size:18px;opacity:.75}
+  .del:hover{opacity:1;transform:translateY(-1px)}
+
+  /* Modals */
+  .dim{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;z-index:9}
+  .modalx{display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:10;width:min(820px,94vw);max-height:88vh;border-radius:26px;overflow:hidden;box-shadow:0 28px 60px rgba(0,0,0,.45);background:#fff}
+  .modal-head{padding:12px 16px;background:linear-gradient(110deg,var(--bg1),var(--bg2));color:#fff;display:flex;align-items:center;justify-content:space-between}
+  .modal-head.right{flex-direction:row-reverse}
+  .close-soft{background:#fda085;color:#fff;border:none;border-radius:12px;padding:6px 12px;font-weight:800;cursor:pointer}
+  .close-soft:hover,.close-soft:active,.close-soft:focus{background:#fda085;color:#fff} /* ثابت بماند */
+  .modal-body{padding:16px;max-height:calc(88vh - 56px);overflow:auto}
+  .modal-card{border:1px solid var(--ring);background:#ffffffcc;border-radius:18px;padding:12px}
+  .chip{background:var(--chip);border:1px solid var(--chip-b);border-radius:999px;padding:4px 10px;display:inline-flex;align-items:center;gap:6px;font-size:12px;cursor:default;position:relative}
+  .dot{width:8px;height:8px;border-radius:999px;display:inline-block}
+  .dot-ok{background:var(--ok)} .dot-warn{background:var(--warn)} .dot-del{background:var(--del)} .dot-def{background:var(--def)}
+  .stat-row{display:flex;align-items:center;gap:10px;margin-top:8px}
+  .bar-mini{flex:1;height:8px;border-radius:999px;background:#eee;overflow:hidden}
+  .bar-mini>span{display:block;height:100%;width:0%}
+  .bm-ok{background:linear-gradient(90deg,#34d399,#10b981)}
+  .bm-warn{background:linear-gradient(90deg,#fbbf24,#f59e0b)}
+  .bm-del{background:linear-gradient(90deg,#fca5a5,#ef4444)}
+  .bm-def{background:linear-gradient(90deg,#a5b4fc,#6366f1)}
+  .day-card{border:1px solid #eaeaea;background:#fff;border-radius:16px;padding:12px;margin-top:12px;box-shadow:0 6px 16px rgba(0,0,0,.06)}
+  .day-title{display:flex;justify-content:space-between;align-items:center;font-weight:800}
+  .mini{font-size:12px;color:#6b7280}
+
+  /* Tooltip floating */
+  .tooltipx{position:fixed;z-index:9999;background:#111827;color:#fff;padding:8px 10px;border-radius:10px;font-size:12px;max-width:60vw;box-shadow:0 8px 18px rgba(0,0,0,.3);display:none;white-space:normal;line-height:1.6}
+</style>
+
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+<meta name="theme-color" content="#f6d365">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+</head>
+<body>
+  <a class="back-btn" href="index.html">بازگشت</a>
+  <div id="date"></div>
+
+  <div class="wrap">
+    <div class="cardx">
+      <div class="topbar">
+        <div class="group">
+          <button id="add" class="btn-pill">➕ کار جدید</button>
+          <button id="reportBtn" class="btn-pill">📊 گزارش‌گیری</button>
+        </div>
+        <div style="min-width:320px">
+          <div class="d-flex justify-content-between align-items-center mb-1">
+            <span class="fw-bold">پیشرفت امروز</span>
+            <span id="progressPercent" class="badge-soft">0%</span>
+          </div>
+          <div class="progress-outer"><div id="bar" class="progress-inner"></div></div>
+        </div>
+      </div>
+
+      <ul id="list"></ul>
+      <div id="emptyHint" class="text-center text-muted" style="display:none">فعلاً کاری باقی نمانده ✨</div>
+    </div>
+  </div>
+
+  <!-- گزارش -->
+  <div id="dim" class="dim"></div>
+  <div id="reportModal" class="modalx">
+    <div class="modal-head right">
+      <button class="close-soft" onclick="closeReport()">بستن</button>
+      <strong>📊 گزارش‌گیری چک‌لیست</strong>
+    </div>
+    <div class="modal-body">
+      <!-- فیلتر تاریخ: بدون کادر مستطیلی -->
+      <div>
+        <div class="row g-2 align-items-end">
+          <div class="col-12 col-sm-6">
+            <label class="form-label">از (روز/ماه/سال)</label>
+            <input id="fromDate" type="text" class="form-control" placeholder="مثلاً 05/07/1404">
+          </div>
+          <div class="col-12 col-sm-6">
+            <label class="form-label">تا (روز/ماه/سال)</label>
+            <input id="toDate" type="text" class="form-control" placeholder="مثلاً 08/07/1404">
+          </div>
+        </div>
+        <div class="d-flex gap-2 mt-3 flex-wrap">
+          <button id="rangeBtn" class="btn-pill">🔎 مشاهده</button>
+          <button id="dailyBtn" class="btn-pill">📅 نمایش جزئیات روزانه</button>
+        </div>
+        <div id="errBox" class="mt-2 text-danger" style="display:none"></div>
+      </div>
+
+      <!-- خلاصهٔ بازه -->
+      <div id="rangeResult" class="modal-card mt-3" style="display:none">
+        <div class="fw-bold mb-2">نتیجه‌ی کلی بازه</div>
+        <div id="rangeSummary" class="d-flex flex-wrap gap-2"></div>
+        <div class="stat-row"><span class="chip"><span class="dot dot-ok"></span>انجام‌شده</span><div class="bar-mini"><span id="bmOk" class="bm-ok"></span></div><span id="bmOkTxt" class="mini">0%</span></div>
+        <div class="stat-row"><span class="chip"><span class="dot dot-warn"></span>انجام‌نشده</span><div class="bar-mini"><span id="bmWarn" class="bm-warn"></span></div><span id="bmWarnTxt" class="mini">0%</span></div>
+        <div class="stat-row"><span class="chip"><span class="dot dot-del"></span>حذف‌شده</span><div class="bar-mini"><span id="bmDel" class="bm-del"></span></div><span id="bmDelTxt" class="mini">0%</span></div>
+        <div class="stat-row"><span class="chip"><span class="dot dot-def"></span>موکول‌شده</span><div class="bar-mini"><span id="bmDef" class="bm-def"></span></div><span id="bmDefTxt" class="mini">0%</span></div>
+      </div>
+
+      <!-- جزئیات روزانه -->
+      <div id="dailyResult" class="modal-card mt-3" style="display:none">
+        <div class="fw-bold mb-2">جزئیات روزانهٔ بازه</div>
+        <div id="dailyLists"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- مودال نمایش جزئیات آیتم‌ها (کلیک روی چیپ‌ها) -->
+  <div id="itemsModal" class="modalx" style="max-width:640px">
+    <div class="modal-head right">
+      <button class="close-soft" onclick="closeItems()">بستن</button>
+      <strong id="itemsTitle">جزئیات</strong>
+    </div>
+    <div class="modal-body" id="itemsBody"></div>
+  </div>
+
+  <!-- تولتیپ مشترک -->
+  <div class="tooltipx" id="tooltipx"></div>
+
+<script>
+  // تاریخ
+  const showJalaliDate=()=>{document.getElementById('date').textContent=moment().locale('fa').format('dddd، D MMMM YYYY')};
+  showJalaliDate(); setInterval(showJalaliDate,30000);
+
+  // کلیدها و storage
+  const todayKey = () => moment().format('jYYYY/jMM/jDD');
+  const keyFor   = ymd => `tasks-${ymd}`;
+  const delKey   = ymd => `deleted-${ymd}`;
+  const defKey   = ymd => `postponed-${ymd}`;
+  const rollKey  = ymd => `carry-done-${ymd}`;
+  const read=(ymd=todayKey())=>JSON.parse(localStorage.getItem(keyFor(ymd))||'[]');
+  const write=(items,ymd=todayKey())=>localStorage.setItem(keyFor(ymd),JSON.stringify(items));
+  const readDeleted=(ymd=todayKey())=>JSON.parse(localStorage.getItem(delKey(ymd))||'[]');
+  const addDeleted=(item,ymd=todayKey())=>{const arr=readDeleted(ymd);arr.push({id:item.id,text:item.text,at:Date.now()});localStorage.setItem(delKey(ymd),JSON.stringify(arr));};
+  const readPostponed=(ymd=todayKey())=>JSON.parse(localStorage.getItem(defKey(ymd))||'[]');
+  const addPostponed=(arr,ymd=todayKey())=>{const prev=readPostponed(ymd);localStorage.setItem(defKey(ymd),JSON.stringify(prev.concat(arr)));};
+
+  // UI tasks
+  const list=document.getElementById('list');
+  function makeItem(d={id:crypto.randomUUID(),text:'',done:false}){
+    const li=document.createElement('li');li.className='task'+(d.done?' done':'');li.dataset.id=d.id;
+    const cb=document.createElement('input');cb.type='checkbox';cb.className='check';cb.checked=!!d.done;
+    const input=document.createElement('input');input.type='text';input.className='txt';input.placeholder='اینجا بنویس…';input.value=d.text||'';
+    const del=document.createElement('button');del.className='del';del.title='حذف';del.innerHTML='🗑️';
+    li.appendChild(cb);li.appendChild(input);li.appendChild(del);
+    cb.addEventListener('change',()=>{li.classList.toggle('done',cb.checked);
+      if(cb.checked){list.appendChild(li);}else{const firstDone=[...list.children].find(x=>x.classList.contains('done')); if(firstDone) list.insertBefore(li,firstDone); else list.insertBefore(li,list.firstChild);}
+      save();refreshProgress();updateEmptyHint();
+    });
+    input.addEventListener('input',()=>{debounceSave();updateEmptyHint();});
+    del.addEventListener('click',()=>{const item={id:li.dataset.id,text:input.value.trim(),done:cb.checked}; addDeleted(item); li.remove(); save(); refreshProgress(); updateEmptyHint();});
+    return li;
+  }
+  const collect=()=>[...list.children].map(li=>({id:li.dataset.id,text:li.querySelector('.txt').value.trim(),done:li.querySelector('.check').checked}));
+
+  // ⬇⬇⬇ تنها تغییر مهم: بعد از ذخیرهٔ local، اگر تابع سینک وجود داشت صدا بزن
+  const save=()=>{ 
+    write(collect()); 
+    if (window.timoSyncChecklist) window.timoSyncChecklist(); // ← سینک به سرور
+  };
+
+  let t=null; const debounceSave=()=>{clearTimeout(t);t=setTimeout(save,260)};
+  const refreshProgress=()=>{const items=collect();const total=items.length,done=items.filter(i=>i.done).length;const p= total? Math.round(done/total*100):0;document.getElementById('bar').style.width=p+'%';document.getElementById('progressPercent').textContent=p+'%';};
+  const updateEmptyHint=()=>{const items=[...list.children];const allDone=items.length>0 && items.every(li=>li.classList.contains('done')||!li.querySelector('.txt').value.trim());document.getElementById('emptyHint').style.display=allDone?'block':'none';};
+  function bootstrapToday(){ let items=read(); if(items.length===0){ items=Array.from({length:5}).map(()=>({id:crypto.randomUUID(),text:'',done:false})); write(items); } list.innerHTML=''; items.forEach(it=>list.appendChild(makeItem(it))); [...list.children].filter(li=>li.classList.contains('done')).forEach(li=>list.appendChild(li)); refreshProgress(); updateEmptyHint(); }
+  bootstrapToday();
+  document.getElementById('add').addEventListener('click',()=>{const li=makeItem(); list.insertBefore(li,[...list.children].find(x=>x.classList.contains('done'))||null); li.querySelector('.txt').focus(); save(); refreshProgress();});
+
+  // Report modal
+  const dim=document.getElementById('dim'), reportModal=document.getElementById('reportModal');
+  document.getElementById('reportBtn').addEventListener('click',()=>{reportModal.style.display='block';dim.style.display='block';});
+  function closeReport(){reportModal.style.display='none';dim.style.display='none';}
+  window.closeReport=closeReport; dim.addEventListener('click',closeReport);
+
+  // تاریخ مشترک
+  const ERR_TXT='لطفاً تاریخ را با فرمت درست وارد کنید.';
+  const keyDMY=(d,m,y)=>`${y}/${String(m).padStart(2,'0')}/${String(d).padStart(2,'0')}`;
+  const validDMY=s=>/^\d{2}\/\d{2}\/\d{4}$/.test(s)&&moment.from(keyDMY(...s.split('/').map(Number)),'fa','jYYYY/jMM/jDD').isValid();
+  const DMYtoYMD=s=>{const [d,m,y]=s.split("/").map(Number);return keyDMY(d,m,y);};
+  function validateRange(from,to){
+    if(!validDMY(from)||!validDMY(to)) return null;
+    const mFrom=moment.from(DMYtoYMD(from),'fa','jYYYY/jMM/jDD');
+    const mTo  =moment.from(DMYtoYMD(to)  ,'fa','jYYYY/jMM/jDD');
+    const today=moment();
+    if(mFrom.isAfter(today) || mTo.isAfter(today)) return null;
+    if(mTo.isBefore(mFrom)) return null;
+    return {mFrom,mTo};
+  }
+  function showErr(msg){const e=document.getElementById('errBox'); e.style.display='block'; e.textContent=msg;}
+
+  // تولتیپ/مودال آیتم‌ها
+  const tooltip=document.getElementById('tooltipx');
+  function showTip(ev, items){ if(!items || !items.length){ hideTip(); return; } tooltip.innerHTML = items.slice(0,8).map(t=>`• ${t||'—'}`).join('<br>'); tooltip.style.display='block'; moveTip(ev); }
+  function moveTip(ev){ tooltip.style.left=(ev.clientX+12)+'px'; tooltip.style.top=(ev.clientY+12)+'px'; }
+  function hideTip(){ tooltip.style.display='none'; }
+
+  const itemsModal=document.getElementById('itemsModal'), itemsBody=document.getElementById('itemsBody'), itemsTitle=document.getElementById('itemsTitle');
+  function openItemsModal(title, items){
+    itemsTitle.textContent = title||'جزئیات';
+    itemsBody.innerHTML = (items && items.length)
+      ? items.map(t=>`<div class="border-bottom py-2">${t||'—'}</div>`).join('')
+      : '<div class="text-muted">موردی وجود ندارد.</div>';
+    itemsModal.style.display='block'; dim.style.display='block';
+  }
+  function closeItems(){ itemsModal.style.display='none'; dim.style.display='none'; }
+  window.closeItems=closeItems;
+
+  function makeChip(html, items, titleForModal){
+    const span=document.createElement('span'); span.className='chip'; span.innerHTML=html;
+    span.addEventListener('mouseenter',(ev)=>showTip(ev,items||[]));
+    span.addEventListener('mousemove',moveTip);
+    span.addEventListener('mouseleave',hideTip);
+    span.addEventListener('click',()=>openItemsModal(titleForModal||'جزئیات', items||[]));
+    return span;
+  }
+
+  function setMiniBars(ids,arr){ ids.forEach((id,i)=>document.getElementById(id).style.width=Math.max(0,Math.min(100,arr[i]))+'%'); }
+  function setMiniBarTexts(ids,arr){ ids.forEach((id,i)=>document.getElementById(id).textContent=Math.max(0,Math.min(100,arr[i]))+'%'); }
+
+  // مشاهده کلی
+  document.getElementById('rangeBtn').addEventListener('click', ()=>{
+    document.getElementById('errBox').style.display='none';
+    const rBox=document.getElementById('rangeResult'), sBox=document.getElementById('rangeSummary');
+    const from=document.getElementById('fromDate').value.trim(), to=document.getElementById('toDate').value.trim();
+    document.getElementById('dailyResult').style.display='none';
+    const v=validateRange(from,to); if(!v){ showErr(ERR_TXT); rBox.style.display='none'; return; }
+
+    const buckets={ok:[],warn:[],del:[],def:[]};
+    const c=v.mFrom.clone();
+    while(c.isSameOrBefore(v.mTo)){
+      const ymd=c.format('jYYYY/jMM/jDD'); const items=read(ymd), dels=readDeleted(ymd), defs=readPostponed(ymd);
+      items.forEach(it => (it.done?buckets.ok:buckets.warn).push({dateYMD:ymd,text:it.text}));
+      (dels||[]).forEach(d=>buckets.del.push({dateYMD:ymd,text:d.text}));
+      (defs||[]).forEach(p=>buckets.def.push({dateYMD:ymd,text:p.text}));
+      c.add(1,'day');
+    }
+    const total = buckets.ok.length+buckets.warn.length+buckets.del.length+buckets.def.length;
+    const pct = n => total? Math.round(n/total*100) : 0;
+
+    rBox.style.display='block';
+    // چیپ‌های خلاصه با هابر/کلیک
+    sBox.innerHTML='';
+    sBox.appendChild(makeChip(`<strong>کل</strong>: ${total}`, [].concat(buckets.ok,buckets.warn,buckets.del,buckets.def).map(x=>x.text), 'کل آیتم‌ها'));
+    sBox.appendChild(makeChip(`<span class="dot dot-ok"></span>انجام‌شده: <strong>${buckets.ok.length}</strong>`, buckets.ok.map(x=>x.text), 'انجام‌شده‌ها'));
+    sBox.appendChild(makeChip(`<span class="dot dot-warn"></span>انجام‌نشده: <strong>${buckets.warn.length}</strong>`, buckets.warn.map(x=>x.text), 'انجام‌نشده‌ها'));
+    sBox.appendChild(makeChip(`<span class="dot dot-del"></span>حذف‌شده: <strong>${buckets.del.length}</strong>`, buckets.del.map(x=>x.text), 'حذف‌شده‌ها'));
+    sBox.appendChild(makeChip(`<span class="dot dot-def"></span>موکول‌شده: <strong>${buckets.def.length}</strong>`, buckets.def.map(x=>x.text), 'موکول‌شده‌ها'));
+
+    setMiniBars(['bmOk','bmWarn','bmDel','bmDef'], [pct(buckets.ok.length), pct(buckets.warn.length), pct(buckets.del.length), pct(buckets.def.length)]);
+    setMiniBarTexts(['bmOkTxt','bmWarnTxt','bmDelTxt','bmDefTxt'], [pct(buckets.ok.length), pct(buckets.warn.length), pct(buckets.del.length), pct(buckets.def.length)]);
+  });
+
+  // جزئیات روزانه (چیپ‌ها با هابر/کلیک)
+  document.getElementById('dailyBtn').addEventListener('click', ()=>{
+    document.getElementById('errBox').style.display='none';
+    const dWrap=document.getElementById('dailyResult'), dLists=document.getElementById('dailyLists');
+    const from=document.getElementById('fromDate').value.trim(), to=document.getElementById('toDate').value.trim();
+    const v=validateRange(from,to); if(!v){ showErr(ERR_TXT); dWrap.style.display='none'; return; }
+    document.getElementById('rangeResult').style.display='none';
+
+    dWrap.style.display='block'; dLists.innerHTML='';
+    const c=v.mFrom.clone();
+    while(c.isSameOrBefore(v.mTo)){
+      const ymd=c.format('jYYYY/jMM/jDD'); const items=read(ymd), dels=readDeleted(ymd), defs=readPostponed(ymd);
+      const done=items.filter(i=>i.done).map(i=>i.text);
+      const undone=items.filter(i=>!i.done).map(i=>i.text);
+      const delc=(dels||[]).map(d=>d.text);
+      const defc=(defs||[]).map(d=>d.text);
+      const total = done.length+undone.length+delc.length+defc.length;
+      const pct = n => total ? Math.round(n/total*100) : 0;
+
+      const card=document.createElement('div'); card.className='day-card';
+      const title=document.createElement('div'); title.className='day-title'; title.innerHTML=`<span>${c.locale('fa').format('dddd jD jMMMM')}</span><span class="badge-soft"><strong>کل</strong>: ${total}</span>`;
+
+      // چیپ‌های روزانه با تولتیپ/مودال
+      const chips=document.createElement('div'); chips.className='d-flex flex-wrap gap-2 mt-2';
+      chips.appendChild(makeChip(`<span class="dot dot-ok"></span> انجام‌شده: <strong>${done.length}</strong>`, done, 'انجام‌شده‌ها — '+c.locale('fa').format('jD jMMMM')));
+      chips.appendChild(makeChip(`<span class="dot dot-warn"></span> انجام‌نشده: <strong>${undone.length}</strong>`, undone, 'انجام‌نشده‌ها — '+c.locale('fa').format('jD jMMMM')));
+      chips.appendChild(makeChip(`<span class="dot dot-del"></span> حذف‌شده: <strong>${delc.length}</strong>`, delc, 'حذف‌شده‌ها — '+c.locale('fa').format('jD jMMMM')));
+      chips.appendChild(makeChip(`<span class="dot dot-def"></span> موکول‌شده: <strong>${defc.length}</strong>`, defc, 'موکول‌شده‌ها — '+c.locale('fa').format('jD jMMMM')));
+
+      const bars=document.createElement('div'); bars.className='mt-2';
+      bars.innerHTML=`
+        <div class="stat-row"><span class="chip"><span class="dot dot-ok"></span>انجام‌شده</span><div class="bar-mini"><span class="bm-ok" style="width:${pct(done.length)}%"></span></div><span class="mini">${pct(done.length)}%</span></div>
+        <div class="stat-row"><span class="chip"><span class="dot dot-warn"></span>انجام‌نشده</span><div class="bar-mini"><span class="bm-warn" style="width:${pct(undone.length)}%"></span></div><span class="mini">${pct(undone.length)}%</span></div>
+        <div class="stat-row"><span class="chip"><span class="dot dot-del"></span>حذف‌شده</span><div class="bar-mini"><span class="bm-del" style="width:${pct(delc.length)}%"></span></div><span class="mini">${pct(delc.length)}%</span></div>
+        <div class="stat-row"><span class="chip"><span class="dot dot-def"></span>موکول‌شده</span><div class="bar-mini"><span class="bm-def" style="width:${pct(defc.length)}%"></span></div><span class="mini">${pct(defc.length)}%</span></div>
+      `;
+
+      card.appendChild(title); card.appendChild(chips); card.appendChild(bars);
+      dLists.appendChild(card);
+      c.add(1,'day');
+    }
+  });
+</script>
+
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('sw.js')
+        .catch(err => console.log('SW register failed:', err));
+    });
+  }
+</script>
+
+<script>
+(async function () {
+  // تاریخ امروز به شمسی (هم‌سو با بقیه صفحات تو)
+  const todayKey = () => moment().format('jYYYY/jMM/jDD');
+  const date = todayKey();
+
+  // --- توابع API
+  async function apiGet(d) {
+    const res = await fetch(`/api/checklist?date=${encodeURIComponent(d)}`);
+    if (!res.ok) throw new Error('get_failed');
+    return res.json();
+  }
+  async function apiSave(payload) {
+    const res = await fetch('/api/checklist/save', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) throw new Error('save_failed');
+    return res.json();
+  }
+
+  // --- خواندن/نوشتن localStorage صفحه چک‌لیست
+  const LS_KEY = `tasks-${date}`;
+  function readLocal() {
+    const arr = JSON.parse(localStorage.getItem(LS_KEY) || '[]');
+    // پاکسازی برای سازگاری با مدل دیتابیس
+    return arr
+      .filter(i => (i?.text || '').trim().length > 0)
+      .map(i => ({ text: i.text, done: !!i.done }));
+  }
+  function writeLocal(items) {
+    const clean = (items || []).map(i => ({ text: i.text || '', done: !!i.done }));
+    localStorage.setItem(LS_KEY, JSON.stringify(clean));
+  }
+
+  // --- 1) موقع لود: اگر روی سرور داده هست، local را با آن پر کن
+  try {
+    const server = await apiGet(date);
+    if (server && Array.isArray(server.items) && server.items.length) {
+      writeLocal(server.items);
+      // اگر تابعی برای رندر داری (مثلاً refreshUI)، صداش کن:
+      if (typeof window.refreshUI === 'function') window.refreshUI();
+    }
+  } catch (e) {
+    console.log('load-from-server failed:', e);
+  }
+
+  // --- 2) سینک به سرور
+  async function syncToServer() {
+    try {
+      const items = readLocal();
+      await apiSave({ date, items, deleted: [], postponed: [] });
+      // console.log('synced');
+    } catch (e) {
+      console.log('sync failed:', e);
+    }
+  }
+
+  // در اختیار بقیه کدها بگذار که هر جا دیتای چک‌لیست را تغییر می‌دهند، این را صدا بزنند:
+  window.timoSyncChecklist = syncToServer;
+
+  // اگر دکمه گزارش داری، روی آن هم سینک دستی بذار
+  try {
+    const reportBtn = document.getElementById('reportBtn');
+    if (reportBtn) reportBtn.addEventListener('click', syncToServer);
+  } catch {}
+
+  // --- 3) سینک خودکار دوره‌ای و هنگام خروج از صفحه
+  setInterval(syncToServer, 5000);           // هر ۵ ثانیه
+  window.addEventListener('beforeunload', syncToServer);
+})();
+</script>
+
+</body>
+</html>

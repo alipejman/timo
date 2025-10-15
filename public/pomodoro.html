@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Timo Pomodoro Timer</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/jalali-moment/dist/jalali-moment.browser.js"></script>
+<style>
+  :root{ --bg1:#f6d365; --bg2:#fda085; --ink:#2d2d2d; }
+  *{box-sizing:border-box}
+  body{
+    margin:0; padding:0; min-height:100vh; font-family:'Vazirmatn',sans-serif;
+    background:linear-gradient(135deg,var(--bg1),var(--bg2));
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    transition:background 1s ease;
+  }
+  a.back-btn{position:fixed;right:22px;top:22px;background:rgba(0,0,0,.35);color:#fff;text-decoration:none;padding:8px 14px;border-radius:999px;font-weight:700}
+  #date{color:#fff;font-size:20px;font-weight:700;margin-bottom:12px;text-shadow:0 2px 6px rgba(0,0,0,.25)}
+  #modeBox{
+    background:rgba(255,255,255,.92); color:var(--ink); font-weight:700; padding:8px 22px; border-radius:20px;
+    box-shadow:0 5px 15px rgba(0,0,0,.2); margin-bottom:14px; font-size:18px
+  }
+  #timer{
+    font-size:120px;font-weight:800;color:#333;background:rgba(255,255,255,.92);
+    border-radius:24px;width:80%;max-width:520px;height:180px;display:flex;align-items:center;justify-content:center;
+    box-shadow:0 12px 28px rgba(0,0,0,.28); margin-bottom:28px
+  }
+  .controls{display:flex;gap:14px;justify-content:center;align-items:center;flex-wrap:wrap}
+  button{padding:10px 22px;border:none;border-radius:28px;font-size:16px;font-weight:800;color:#fff;background:#333;cursor:pointer;transition:.25s}
+  button:hover{transform:scale(1.06);background:#000}
+  #settings-icon{font-size:24px;color:#fff;cursor:pointer;margin-right:5px;transition:.3s}
+  #settings-icon:hover{transform:rotate(90deg)}
+  .settings-menu{display:none; position:absolute; bottom:96px; background:rgba(255,255,255,.96); border-radius:14px; box-shadow:0 10px 26px rgba(0,0,0,.25); padding:8px; white-space:nowrap}
+  .settings-menu button{display:block;width:100%;margin:6px 0;background:#fda085;color:#fff}
+  .btn-pill{border:none;background:#111827;color:#fff;border-radius:999px;padding:10px 16px;font-weight:800;display:inline-flex;gap:8px;align-items:center}
+
+  /* Modals */
+  .dim{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;z-index:9}
+  .modal-box{display:none; position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); background:#fff; width:min(640px,92vw); border-radius:20px; overflow:hidden; box-shadow:0 24px 60px rgba(0,0,0,.35); z-index:10}
+  .modal-head{padding:10px 14px; background:linear-gradient(135deg,var(--bg1),var(--bg2)); color:#fff; display:flex; align-items:center; justify-content:space-between}
+  .modal-head.right{flex-direction:row-reverse}
+  .close-soft{background:#fda085; color:#fff; border:none; border-radius:12px; padding:6px 12px; font-weight:800; cursor:pointer}
+  .close-soft:hover,.close-soft:active,.close-soft:focus{background:#fda085;color:#fff;transform:none}
+  .modal-body{padding:16px;max-height:70vh;overflow-y:auto;overflow-x:hidden}
+  .modal-box input{margin:6px 0; padding:10px 12px; border-radius:12px; border:1px solid #e5e7eb; width:100%; text-align:center}
+  .rep-card{border:1px solid #eee;border-radius:16px;background:#fff;padding:12px}
+  .rep-title{font-weight:800;margin-bottom:6px}
+
+  .nohover, .nohover:hover, .nohover:active, .nohover:focus {
+    background:#fda085 !important;
+    color:#fff !important;
+    border-color:#fda085 !important;
+    transform:none !important;
+    box-shadow:none !important;
+    filter:none !important;
+  }
+</style>
+
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+<meta name="theme-color" content="#f6d365">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+</head>
+<body>
+
+<a href="index.html" class="back-btn">بازگشت</a>
+<div id="date"></div>
+<div id="modeBox">زمان مطالعه 📚</div>
+<div id="timer">25:00</div>
+
+<div class="controls">
+  <button id="start">شروع</button>
+  <button id="pause">توقف</button>
+  <button id="reset">ریست</button>
+  <button id="end">پایان</button>
+  <div id="settings-icon">⚙️</div>
+</div>
+
+<div class="settings-menu" id="settings-menu">
+  <button id="custom-time">⏱️ تنظیم زمان دلخواه</button>
+  <button id="report">📊 گزارش‌گیری</button>
+</div>
+
+<!-- Custom Time -->
+<div id="dim" class="dim"></div>
+<div class="modal-box" id="customTimeModal">
+  <div class="modal-head right">
+    <button class="close-soft" onclick="closeModal('customTimeModal')">بستن</button>
+    <strong>تنظیم زمان دلخواه</strong>
+  </div>
+  <div class="modal-body">
+    <label class="form-label">زمان مطالعه (دقیقه)</label>
+    <input type="number" id="studyTime" placeholder="مثلاً 25">
+    <label class="form-label">زمان استراحت (دقیقه)</label>
+    <input type="number" id="breakTime" placeholder="مثلاً 5">
+    <button class="btn w-100 mt-2 nohover" style="background:#fda085;color:#fff" onclick="saveCustomTime()">ذخیره</button>
+  </div>
+</div>
+
+<!-- Report -->
+<div class="modal-box" id="reportModal">
+  <div class="modal-head right">
+    <button class="close-soft" onclick="closeModal('reportModal')">بستن</button>
+    <strong>📊 گزارش‌گیری</strong>
+  </div>
+  <div class="modal-body">
+    <p id="todayLine" class="mb-3 fw-bold">امروز ۰ دقیقه مطالعه کردی 📚</p>
+
+    <div class="row g-2 align-items-end">
+      <div class="col-12 col-sm-6">
+        <label class="form-label">از (روز/ماه/سال)</label>
+        <input type="text" id="fromDate" placeholder="مثلاً 10/07/1404">
+      </div>
+      <div class="col-12 col-sm-6">
+        <label class="form-label">تا (روز/ماه/سال)</label>
+        <input type="text" id="toDate" placeholder="مثلاً 18/07/1404">
+      </div>
+    </div>
+
+    <div class="d-flex gap-2 mt-3 flex-wrap">
+      <button id="btnRange" class="btn-pill">🔎 مشاهده</button>
+      <button id="btnDaily" class="btn-pill">📅 نمایش جزئیات روزانه</button>
+    </div>
+    <div id="errBox" class="mt-2 text-danger" style="display:none"></div>
+
+    <div id="cards" class="mt-3" style="display:none">
+      <div class="rep-card">
+        <div class="rep-title">کل مطالعه در بازه</div>
+        <div id="sumMinutes" class="fs-5 fw-bold">۰ دقیقه</div>
+      </div>
+      <div class="rep-card mt-2">
+        <div class="rep-title">میانگین روزهای دارای مطالعه</div>
+        <div id="avgMinutes" class="fs-5 fw-bold">۰ دقیقه</div>
+      </div>
+    </div>
+
+    <div id="dailyBox" class="rep-card mt-3" style="display:none">
+      <div class="rep-title">جزئیات روزانهٔ بازه</div>
+      <div id="dailyList"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const showJalaliDate=()=>{document.getElementById('date').textContent=moment().locale('fa').format('dddd، D MMMM YYYY')};
+  showJalaliDate();
+
+  // کمک‌ها
+  const todayKey = () => moment().format('jYYYY/jMM/jDD');
+
+  async function apiGetTodayTotal() {
+    const d = todayKey();
+    const r = await fetch(`/api/timer?date=${encodeURIComponent(d)}`).then(r=>r.json());
+    return r.totalSeconds || 0;
+  }
+  async function apiAddSeconds(seconds, session) {
+    const d = todayKey();
+    await fetch('/api/timer/addSeconds', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ date: d, seconds, session })
+    });
+  }
+  async function apiRange(fromYMD, toYMD) {
+    const r = await fetch(`/api/timer/range?from=${encodeURIComponent(fromYMD)}&to=${encodeURIComponent(toYMD)}`).then(r=>r.json());
+    return Array.isArray(r) ? r : [];
+  }
+
+  // Timer
+  let studyTime = 25*60, breakTime=5*60, remaining=studyTime, interval=null, isRunning=false, isStudy=true, sessionStart=null, accSeconds=0;
+
+  function setBg(isStudy){ document.body.style.background = isStudy ? 'linear-gradient(135deg, #f6d365 0%, #fda085 100%)' : 'linear-gradient(135deg, #a1c4fd 0%, #c2e9fb 100%)'; }
+  function updateTimer(){ const m=Math.floor(remaining/60), s=remaining%60; document.getElementById('timer').textContent = `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`; }
+  function beep(freq=800, dur=300){ const ctx=new (window.AudioContext||window.webkitAudioContext)(); const o=ctx.createOscillator(), g=ctx.createGain(); o.connect(g); g.connect(ctx.destination); o.type='sine'; o.frequency.value=freq; g.gain.value=0.1; o.start(); o.stop(ctx.currentTime+dur/1000); }
+
+  function startTimer(){
+    if(isRunning) return; isRunning=true;
+    if(!sessionStart) sessionStart = new Date().toISOString();
+    interval=setInterval(()=>{
+      if(remaining>0){
+        remaining--; updateTimer();
+        accSeconds++;
+        if(remaining<=3 && remaining>0) beep(900,180);
+        if(remaining===0) beep(600,600);
+      } else {
+        clearInterval(interval); isRunning=false;
+        if(isStudy){
+          // پایان فاز مطالعه ← ذخیره در سرور
+          const endISO = new Date().toISOString();
+          apiAddSeconds(studyTime, { start: sessionStart, end: endISO, seconds: studyTime }).then(updateTodayLine);
+          sessionStart = null; accSeconds = 0;
+
+          isStudy=false; remaining=breakTime; document.getElementById('modeBox').textContent='زمان استراحت ☕'; setBg(false); toast('مطالعه تمام شد، استراحت کن ☕');
+          startTimer();
+        } else {
+          isStudy=true; remaining=studyTime; document.getElementById('modeBox').textContent='زمان مطالعه 📚'; setBg(true); toast('استراحت تمام شد، برگرد به مطالعه 📚');
+          startTimer();
+        }
+      }
+    },1000);
+  }
+  document.getElementById('start').onclick = startTimer;
+  document.getElementById('pause').onclick = ()=>{
+    clearInterval(interval); if(!isRunning) return; isRunning=false;
+    if(isStudy && accSeconds>0){ const endISO=new Date().toISOString(); apiAddSeconds(accSeconds,{start:sessionStart,end:endISO,seconds:accSeconds}).then(updateTodayLine); }
+    sessionStart=null; accSeconds=0;
+  };
+  document.getElementById('reset').onclick = ()=>{
+    clearInterval(interval); isRunning=false;
+    if(isStudy && accSeconds>0){ const endISO=new Date().toISOString(); apiAddSeconds(accSeconds,{start:sessionStart,end:endISO,seconds:accSeconds}).then(updateTodayLine); }
+    sessionStart=null; accSeconds=0;
+
+    isStudy=true; remaining=studyTime; document.getElementById('modeBox').textContent='زمان مطالعه 📚'; setBg(true); updateTimer();
+  };
+  document.getElementById('end').onclick = ()=>{
+    clearInterval(interval); if(isStudy && accSeconds>0){ const endISO=new Date().toISOString(); apiAddSeconds(accSeconds,{start:sessionStart,end:endISO,seconds:accSeconds}).then(updateTodayLine); }
+    isRunning=false; sessionStart=null; accSeconds=0;
+    remaining=studyTime; updateTimer(); toast('تایم مطالعه ثبت شد ✅');
+  };
+  updateTimer();
+
+  function toast(text){ const el=document.createElement('div'); el.textContent=text; Object.assign(el.style,{position:'fixed',bottom:'28px',left:'50%',transform:'translateX(-50%)',background:'#333',color:'#fff',padding:'10px 20px',borderRadius:'22px',fontWeight:'700',boxShadow:'0 8px 18px rgba(0,0,0,.3)',zIndex:'9999',opacity:'0',transition:'opacity .4s'}); document.body.appendChild(el); setTimeout(()=>el.style.opacity='1',30); setTimeout(()=>{el.style.opacity='0'; setTimeout(()=>el.remove(),400)},2800); }
+
+  const settingsIcon=document.getElementById('settings-icon'), settingsMenu=document.getElementById('settings-menu'), dim=document.getElementById('dim');
+  settingsIcon.onclick=e=>{e.stopPropagation(); settingsMenu.style.display = settingsMenu.style.display==='block'?'none':'block';};
+  document.addEventListener('click',e=>{ if(!settingsMenu.contains(e.target) && e.target!==settingsIcon) settingsMenu.style.display='none'; });
+
+  document.getElementById('custom-time').onclick = e=>{e.stopPropagation(); settingsMenu.style.display='none'; openModal('customTimeModal');};
+  document.getElementById('report').onclick      = e=>{e.stopPropagation(); settingsMenu.style.display='none'; openModal('reportModal'); updateTodayLine();};
+
+  function openModal(id){ document.getElementById(id).style.display='block'; dim.style.display='block'; }
+  function closeModal(id){ document.getElementById(id).style.display='none'; dim.style.display='none'; }
+  dim.addEventListener('click',()=>{ ['customTimeModal','reportModal'].forEach(i=>document.getElementById(i).style.display='none'); dim.style.display='none'; });
+
+  function saveCustomTime(){
+    const s=parseInt(document.getElementById('studyTime').value), b=parseInt(document.getElementById('breakTime').value);
+    if(s>0) studyTime=s*60; if(b>0) breakTime=b*60; remaining=studyTime; updateTimer(); toast('زمان جدید ذخیره شد ✅'); closeModal('customTimeModal');
+  }
+
+  // نمایش امروز (از سرور)
+  async function updateTodayLine(){
+    const secs = await apiGetTodayTotal();
+    const mins = Math.floor(secs/60);
+    document.getElementById('todayLine').textContent = `امروز ${mins} دقیقه مطالعه کردی 📚`;
+  }
+  updateTodayLine();
+
+  // تاریخ مشترک گزارش
+  const ERR_TXT='لطفاً تاریخ را با فرمت درست وارد کنید.';
+  const keyDMY=(d,m,y)=>`${y}/${String(m).padStart(2,'0')}/${String(d).padStart(2,'0')}`;
+  const validDMY=s=>/^\d{2}\/\d{2}\/\d{4}$/.test(s)&&moment.from(keyDMY(...s.split('/').map(Number)),'fa','jYYYY/jMM/jDD').isValid();
+  const DMYtoYMD=s=>{const [d,m,y]=s.split('/').map(Number); return keyDMY(d,m,y);};
+  function validateRange(from,to){
+    if(!validDMY(from)||!validDMY(to)) return null;
+    const mFrom=moment.from(DMYtoYMD(from),'fa','jYYYY/jMM/jDD');
+    const mTo  =moment.from(DMYtoYMD(to)  ,'fa','jYYYY/jMM/jDD');
+    const today=moment();
+    if(mFrom.isAfter(today) || mTo.isAfter(today)) return null;
+    if(mTo.isBefore(mFrom)) return null;
+    return {mFrom,mTo};
+  }
+  function showErr(msg){const e=document.getElementById('errBox'); e.style.display='block'; e.textContent=msg;}
+
+  document.getElementById('btnRange').onclick=async()=>{
+    const from=document.getElementById('fromDate').value.trim(), to=document.getElementById('toDate').value.trim();
+    document.getElementById('errBox').style.display='none';
+    const v=validateRange(from,to); if(!v){ showErr(ERR_TXT); document.getElementById('cards').style.display='none'; document.getElementById('dailyBox').style.display='none'; return; }
+
+    const docs = await apiRange(v.mFrom.format('jYYYY/jMM/jDD'), v.mTo.format('jYYYY/jMM/jDD'));
+    const sumSecs = docs.reduce((s,d)=>s+(d.totalSeconds||0), 0);
+    const daysWithStudy = docs.filter(d => (d.totalSeconds||0)>0).length;
+    document.getElementById('sumMinutes').textContent = `${Math.floor(sumSecs/60)} دقیقه`;
+    document.getElementById('avgMinutes').textContent = daysWithStudy ? `${Math.round(sumSecs/60/daysWithStudy)} دقیقه` : '۰ دقیقه';
+    document.getElementById('cards').style.display='block';
+    document.getElementById('dailyBox').style.display='none';
+  };
+
+  document.getElementById('btnDaily').onclick=async()=>{
+    const from=document.getElementById('fromDate').value.trim(), to=document.getElementById('toDate').value.trim();
+    document.getElementById('errBox').style.display='none';
+    const v=validateRange(from,to); if(!v){ showErr(ERR_TXT); document.getElementById('dailyBox').style.display='none'; document.getElementById('cards').style.display='none'; return; }
+
+    const docs = await apiRange(v.mFrom.format('jYYYY/jMM/jDD'), v.mTo.format('jYYYY/jMM/jDD'));
+    const byDate = Object.fromEntries(docs.map(d => [d.date, d.totalSeconds||0]));
+
+    const list=document.getElementById('dailyList'); list.innerHTML='';
+    const c=v.mFrom.clone();
+    while(c.isSameOrBefore(v.mTo)){
+      const k=c.format('jYYYY/jMM/jDD'); const mins=Math.floor((byDate[k]||0)/60);
+      const row=document.createElement('div'); row.className='d-flex justify-content-between border-bottom py-2';
+      row.innerHTML=`<span>${c.locale('fa').format('dddd jD jMMMM')}</span><strong>${mins} دقیقه</strong>`;
+      list.appendChild(row); c.add(1,'day');
+    }
+    document.getElementById('cards').style.display='none';
+    document.getElementById('dailyBox').style.display='block';
+  };
+</script>
+
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('sw.js')
+        .catch(err => console.log('SW register failed:', err));
+    });
+  }
+</script>
+
+</body>
+</html>

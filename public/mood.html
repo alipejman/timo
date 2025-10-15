@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Timo Mood Tracker</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/jalali-moment/dist/jalali-moment.browser.js"></script>
+<style>
+  :root{--bg1:#f6d365;--bg2:#fda085;--ink:#2a2a2a;--card:rgba(255,255,255,.96);--ring:rgba(0,0,0,.08);
+        --ang:#ef4444;--sad:#60a5fa;--bored:#f59e0b;--happy:#10b981;--excited:#7c3aed}
+  *{box-sizing:border-box}
+  body{margin:0;min-height:100vh;background:linear-gradient(135deg,var(--bg1),var(--bg2));font-family:'Vazirmatn',sans-serif}
+  a.back-btn{position:fixed;right:22px;top:22px;background:rgba(0,0,0,.35);color:#fff;text-decoration:none;padding:8px 14px;border-radius:999px;font-weight:700}
+  #date{text-align:center;color:#fff;font-weight:800;margin-top:30px;text-shadow:0 2px 10px rgba(0,0,0,.25)}
+  .wrap{width:min(920px,92vw);margin:90px auto 60px}
+  .cardx{background:var(--card);border-radius:28px;box-shadow:0 18px 40px rgba(0,0,0,.25);padding:22px}
+  .topbar{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+  .btn-pill{border:none;background:#111827;color:#fff;border-radius:999px;padding:10px 16px;font-weight:800;display:flex;align-items:center;gap:8px;cursor:pointer}
+  .moods{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin:14px 0}
+  .mood{border:2px solid #e5e7eb;background:#fff;border-radius:16px;padding:12px;display:flex;flex-direction:column;align-items:center;gap:6px;cursor:pointer}
+  .mood.active{border-color:#111827;box-shadow:0 10px 26px rgba(0,0,0,.12)}
+  .note{border:1px solid #eee;border-radius:14px;padding:10px;width:100%;min-height:84px}
+  .stats .row-mini{display:flex;align-items:center;gap:10px;margin-top:8px}
+  .row-mini .bar{flex:1;height:10px;border-radius:999px;background:#eee;overflow:hidden}
+  .row-mini .bar>span{display:block;height:100%;width:0%}
+  .b-ang{background:var(--ang)} .b-sad{background:var(--sad)} .b-bored{background:var(--bored)} .b-happy{background:var(--happy)} .b-excited{background:var(--excited)}
+  .chip{background:#f3f4f6;border:1px solid #e5e7eb;border-radius:999px;padding:2px 8px;font-size:12px}
+  .dot{width:9px;height:9px;border-radius:999px;display:inline-block;margin-inline-start:6px}
+  .d-ang{background:var(--ang)} .d-sad{background:var(--sad)} .d-bored{background:var(--bored)} .d-happy{background:var(--happy)} .d-excited{background:var(--excited)}
+
+  .dim{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;z-index:9}
+  .modalx{display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:10;width:min(820px,94vw);max-height:88vh;border-radius:26px;overflow:hidden;box-shadow:0 28px 60px rgba(0,0,0,.45);background:#fff}
+  .modal-head{padding:12px 16px;background:linear-gradient(110deg,var(--bg1),var(--bg2));color:#fff;display:flex;align-items:center;justify-content:space-between}
+  .modal-head.right{flex-direction:row-reverse}
+  .close-soft{background:#fda085;color:#fff;border:none;border-radius:12px;padding:6px 12px;font-weight:800;cursor:pointer}
+  .close-soft:hover,.close-soft:active,.close-soft:focus{background:#fda085;color:#fff}
+  .modal-body{padding:16px;max-height:calc(88vh - 56px);overflow:auto}
+  .daily-card{border:1px solid #eaeaea;background:#fff;border-radius:16px;padding:12px;margin-top:12px;box-shadow:0 6px 16px rgba(0,0,0,.06)}
+  .daily-head{display:flex;justify-content:space-between;align-items:center;font-weight:800}
+  .badge-soft{background:#00000010;border:1px solid #00000015;padding:2px 8px;border-radius:999px;font-size:12px;color:#555}
+  .mini{font-size:12px;color:#6b7280}
+</style>
+
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+<meta name="theme-color" content="#f6d365">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+</head>
+<body>
+  <a class="back-btn" href="index.html">بازگشت</a>
+  <div id="date"></div>
+
+  <div class="wrap">
+    <div class="cardx">
+      <div class="topbar">
+        <strong class="fs-5">ردیاب حالت </strong>
+        <button id="reportBtn" class="btn-pill">📊 گزارش‌گیری</button>
+      </div>
+
+      <div class="moods" id="moodRow"></div>
+      <textarea id="note" class="note" placeholder="یادداشت امروز..."></textarea>
+
+      <div class="d-flex justify-content-end gap-2 mt-2">
+        <span id="saveHint" class="text-success" style="display:none">ذخیره شد ✓</span>
+        <button id="saveBtn" class="btn-pill">💾 ذخیره</button>
+      </div>
+
+      <div class="stats mt-3">
+        <div class="fw-bold mb-2">حس و حال ۷ روز اخیر</div>
+        <div class="row-mini"><span class="chip"><span class="dot d-ang"></span>عصبی</span><div class="bar"><span id="p7-ang" class="b-ang"></span></div><span id="t7-ang" class="mini">0%</span></div>
+        <div class="row-mini"><span class="chip"><span class="dot d-sad"></span>غمگین</span><div class="bar"><span id="p7-sad" class="b-sad"></span></div><span id="t7-sad" class="mini">0%</span></div>
+        <div class="row-mini"><span class="chip"><span class="dot d-bored"></span>بی‌حوصله</span><div class="bar"><span id="p7-bored" class="b-bored"></span></div><span id="t7-bored" class="mini">0%</span></div>
+        <div class="row-mini"><span class="chip"><span class="dot d-happy"></span>خوشحال</span><div class="bar"><span id="p7-happy" class="b-happy"></span></div><span id="t7-happy" class="mini">0%</span></div>
+        <div class="row-mini"><span class="chip"><span class="dot d-excited"></span>هیجان‌زده</span><div class="bar"><span id="p7-excited" class="b-excited"></span></div><span id="t7-excited" class="mini">0%</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="dim" class="dim"></div>
+  <div id="reportModal" class="modalx">
+    <div class="modal-head right">
+      <button class="close-soft" onclick="closeReport()">بستن</button>
+      <strong>📊 گزارش ردیاب حالت</strong>
+    </div>
+    <div class="modal-body">
+      <div class="modal-card">
+        <div class="row g-2 align-items-end">
+          <div class="col-12 col-sm-6">
+            <label class="form-label">از (روز/ماه/سال)</label>
+            <input id="fromDate" type="text" class="form-control" placeholder="مثلاً 05/07/1404">
+          </div>
+          <div class="col-12 col-sm-6">
+            <label class="form-label">تا (روز/ماه/سال)</label>
+            <input id="toDate" type="text" class="form-control" placeholder="مثلاً 18/07/1404">
+          </div>
+        </div>
+        <div class="d-flex gap-2 mt-3 flex-wrap">
+          <button id="rangeBtn" class="btn-pill">🔎 مشاهده</button>
+          <button id="dailyBtn" class="btn-pill">📅 نمایش جزئیات روزانه</button>
+        </div>
+        <div id="errBox" class="mt-2 text-danger" style="display:none"></div>
+      </div>
+
+      <div id="rangeResult" class="modal-card mt-3" style="display:none">
+        <div class="d-flex justify-content-between align-items-center">
+          <div class="fw-bold">نتیجه‌ی کلی بازه</div>
+          <span id="avgRange" class="badge-soft">—</span>
+        </div>
+        <div class="row-mini mt-2"><span class="chip">عصبی</span><div class="bar"><span id="rb-ang" class="b-ang"></span></div><span id="rt-ang" class="mini">0%</span></div>
+        <div class="row-mini"><span class="chip">غمگین</span><div class="bar"><span id="rb-sad" class="b-sad"></span></div><span id="rt-sad" class="mini">0%</span></div>
+        <div class="row-mini"><span class="chip">بی‌حوصله</span><div class="bar"><span id="rb-bored" class="b-bored"></span></div><span id="rt-bored" class="mini">0%</span></div>
+        <div class="row-mini"><span class="chip">خوشحال</span><div class="bar"><span id="rb-happy" class="b-happy"></span></div><span id="rt-happy" class="mini">0%</span></div>
+        <div class="row-mini"><span class="chip">هیجان‌زده</span><div class="bar"><span id="rb-excited" class="b-excited"></span></div><span id="rt-excited" class="mini">0%</span></div>
+      </div>
+
+      <div id="dailyBox" class="modal-card mt-3" style="display:none">
+        <div class="fw-bold mb-2">جزئیات روزانهٔ بازه</div>
+        <div id="daysList"></div>
+      </div>
+    </div>
+  </div>
+
+<script>
+  const showJalaliDate=()=>{document.getElementById('date').textContent=moment().locale('fa').format('dddd، D MMMM YYYY')}; showJalaliDate();
+
+  const todayKey = () => moment().format('jYYYY/jMM/jDD');
+  const moodMap=[{score:1,label:'عصبی',emo:'😠'},{score:2,label:'غمگین',emo:'😢'},{score:3,label:'بی‌حوصله',emo:'😐'},{score:4,label:'خوشحال',emo:'😊'},{score:5,label:'هیجان‌زده',emo:'🤩'}];
+
+  // API helpers
+  const apiGetMood = async (d) => fetch(`/api/mood?date=${encodeURIComponent(d)}`).then(r=>r.json());
+  const apiSaveMood = async (d, mood, note) => fetch('/api/mood/save', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ date:d, mood, note })}).then(r=>r.json());
+  const apiRange = async (from,to) => fetch(`/api/mood/range?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`).then(r=>r.json());
+
+  // UI
+  const row=document.getElementById('moodRow'); let selected=null; const noteEl=document.getElementById('note');
+  function renderMoods(){ row.innerHTML=''; moodMap.forEach(m=>{ const b=document.createElement('button'); b.className='mood'+(selected===m.score?' active':''); b.innerHTML=`<div style="font-size:24px">${m.emo}</div><div style="font-size:13px;font-weight:700">${m.label}</div>`; b.onclick=()=>{selected=m.score; renderMoods();}; row.appendChild(b); }); }
+
+  // Load today from server
+  (async function initToday(){
+    const d = todayKey();
+    try{
+      const data = await apiGetMood(d);
+      selected = data && data.mood != null ? Number(data.mood) : null;
+      noteEl.value = (data && data.note) || '';
+    }catch{}
+    renderMoods();
+    recomputeStats();
+  })();
+
+  document.getElementById('saveBtn').onclick=async()=>{
+    if(!selected) return alert('لطفاً مود امروز را انتخاب کن.');
+    const d = todayKey();
+    await apiSaveMood(d, selected, noteEl.value.trim());
+    document.getElementById('saveHint').style.display='inline';
+    setTimeout(()=>document.getElementById('saveHint').style.display='none',1200);
+    recomputeStats();
+  };
+
+  async function recomputeStats(){
+    // 7 روز اخیر
+    const to = moment();
+    const from = moment().subtract(6,'day');
+    const docs = await apiRange(from.format('jYYYY/jMM/jDD'), to.format('jYYYY/jMM/jDD'));
+    const counts=[0,0,0,0,0];
+    (docs||[]).forEach(d => {
+      if (d && d.mood != null && d.mood>=1 && d.mood<=5) counts[d.mood-1]++
+    });
+    const total = counts.reduce((a,b)=>a+b,0);
+    const pct = total ? counts.map(n=>Math.round(n/total*100)) : [0,0,0,0,0];
+    ['p7-ang','p7-sad','p7-bored','p7-happy','p7-excited'].forEach((id,i)=>document.getElementById(id).style.width=pct[i]+'%');
+    ['t7-ang','t7-sad','t7-bored','t7-happy','t7-excited'].forEach((id,i)=>document.getElementById(id).textContent=pct[i]+'%');
+  }
+
+  const dim=document.getElementById('dim'), reportModal=document.getElementById('reportModal');
+  document.getElementById('reportBtn').onclick=()=>{reportModal.style.display='block';dim.style.display='block';};
+  function closeReport(){reportModal.style.display='none';dim.style.display='none';} window.closeReport=closeReport; dim.onclick=closeReport;
+
+  // گزارش بازه
+  const ERR_TXT = 'لطفاً تاریخ را با فرمت درست وارد کنید.';
+  const keyDMY=(d,m,y)=>`${y}/${String(m).padStart(2,'0')}/${String(d).padStart(2,'0')}`;
+  const validDMY=s=>/^\d{2}\/\d{2}\/\d{4}$/.test(s)&&moment.from(keyDMY(...s.split('/').map(Number)),'fa','jYYYY/jMM/jDD').isValid();
+  const DMYtoYMD=s=>{const [d,m,y]=s.split('/').map(Number);return keyDMY(d,m,y);};
+  function validateRange(from,to){
+    if(!validDMY(from)||!validDMY(to)) return null;
+    const mFrom=moment.from(DMYtoYMD(from),'fa','jYYYY/jMM/jDD');
+    const mTo  =moment.from(DMYtoYMD(to)  ,'fa','jYYYY/jMM/jDD');
+    const today=moment();
+    if(mFrom.isAfter(today) || mTo.isAfter(today)) return null;
+    if(mTo.isBefore(mFrom)) return null;
+    return {mFrom,mTo};
+  }
+  function showErr(msg){const e=document.getElementById('errBox'); e.style.display='block'; e.textContent=msg;}
+
+  document.getElementById('rangeBtn').onclick=()=>runRange(false);
+  document.getElementById('dailyBtn').onclick=()=>runRange(true);
+
+  async function runRange(dailyOnly){
+    const from=document.getElementById('fromDate').value.trim(), to=document.getElementById('toDate').value.trim();
+    const rangeBox=document.getElementById('rangeResult'), dailyBox=document.getElementById('dailyBox'), daysList=document.getElementById('daysList'); 
+    document.getElementById('errBox').style.display='none';
+    const v=validateRange(from,to); if(!v){ showErr(ERR_TXT); rangeBox.style.display='none'; dailyBox.style.display='none'; return; }
+
+    rangeBox.style.display='none'; dailyBox.style.display='none';
+
+    const docs = await apiRange(v.mFrom.format('jYYYY/jMM/jDD'), v.mTo.format('jYYYY/jMM/jDD'));
+    const byDate = Object.fromEntries((docs||[]).map(d=>[d.date, d]));
+
+    // آمار کلی
+    const counts=[0,0,0,0,0];
+    (docs||[]).forEach(d=>{ if(d.mood!=null) counts[d.mood-1]++; });
+    const total = counts.reduce((a,b)=>a+b,0)||1;
+    const pct = counts.map(n=>Math.round(n/total*100));
+    ['rb-ang','rb-sad','rb-bored','rb-happy','rb-excited'].forEach((id,i)=>{const el=document.getElementById(id); if(el) el.style.width=pct[i]+'%';});
+    ['rt-ang','rt-sad','rt-bored','rt-happy','rt-excited'].forEach((id,i)=>{const el=document.getElementById(id); if(el) el.textContent=pct[i]+'%';});
+    const maxIdx = counts.indexOf(Math.max(...counts));
+    document.getElementById('avgRange').textContent = (total>0 ? `حس غالب: ${moodMap[maxIdx].emo} ${moodMap[maxIdx].label}` : '—');
+
+    if (dailyOnly) {
+      daysList.innerHTML='';
+      const c=v.mFrom.clone();
+      while(c.isSameOrBefore(v.mTo)){
+        const k=c.format('jYYYY/jMM/jDD'); const m=byDate[k];
+        const daily=document.createElement('div'); daily.className='daily-card';
+        const head=document.createElement('div'); head.className='daily-head';
+        if(m && m.mood!=null){ const map=moodMap[m.mood-1]; head.innerHTML=`<span>${c.locale('fa').format('dddd jD jMMMM')}</span><span class="badge-soft">${map.emo} ${map.label}</span>`; }
+        else{ head.innerHTML=`<span>${c.locale('fa').format('dddd jD jMMMM')}</span><span class="badge-soft">ثبت نشده</span>`; }
+        const body=document.createElement('div'); body.className='mt-1 mini'; body.textContent = (m && m.note)? ('یادداشت: '+m.note) : (m ? 'یادداشتی ثبت نشده.' : 'ثبت نشده — از حال آن روز خبر نداریم.');
+        daily.appendChild(head); daily.appendChild(body); daysList.appendChild(daily);
+        c.add(1,'day');
+      }
+      dailyBox.style.display='block';
+    } else {
+      rangeBox.style.display='block';
+    }
+  }
+</script>
+
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('sw.js')
+        .catch(err => console.log('SW register failed:', err));
+    });
+  }
+</script>
+
+</body>
+</html>

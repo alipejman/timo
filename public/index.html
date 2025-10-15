@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Timo — Dashboard</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/jalali-moment/dist/jalali-moment.browser.js"></script>
+<style>
+  body {
+    margin:0; padding:0;
+    font-family:'Vazirmatn',sans-serif;
+    min-height:100vh;
+    background: linear-gradient(135deg, #f6d365 0%, #fda085 100%);
+    display:flex; flex-direction:column; justify-content:center; align-items:center;
+    text-align:center;
+  }
+  h1 {
+    color:#fff; margin:0 0 6px; text-shadow: 2px 2px 5px rgba(0,0,0,0.3);
+    font-weight:900; font-size:36px;
+  }
+  .subtitle{
+    color:#fff; opacity:.95; margin-bottom:28px; font-weight:700;
+    text-shadow: 1px 2px 4px rgba(0,0,0,.25);
+  }
+
+  .dashboard { display:flex; justify-content:center; gap:20px; flex-wrap:wrap; }
+
+  /* لینکِ کارت برای ناوبری بدون JS */
+  .card-link{ display:inline-block; text-decoration:none; color:inherit; }
+  .card {
+    width:250px; height:250px; border-radius:30px;
+    background: rgba(255,255,255,0.9);
+    box-shadow: 0 15px 30px rgba(0,0,0,0.2);
+    transition: transform .3s, box-shadow .3s;
+    position:relative; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    padding:16px 16px 58px; /* جا برای فوتر پایین */
+    cursor:pointer;
+  }
+  .card:hover { transform: scale(1.1) rotate(-2deg); box-shadow: 0 25px 50px rgba(0,0,0,0.3); }
+
+  .card img { width:80px; height:80px; margin-bottom:12px; }
+  .card p { font-size:18px; font-weight:800; color:#333; margin:0; }
+
+  .mini-footer{
+    position:absolute; left:12px; right:12px; bottom:12px;
+    border:1px dashed #e5e7eb; background:#fafafa;
+    border-radius:12px; padding:8px 10px; font-size:13px; color:#374151;
+    display:flex; align-items:center; justify-content:space-between; gap:8px;
+  }
+  .mini-footer strong{ font-weight:900; color:#111; }
+</style>
+
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+<meta name="theme-color" content="#f6d365">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+</head>
+<body>
+
+<h1>Timo ⏰</h1>
+<div class="subtitle">دستیاری برای رسیدن به هدف‌های تو 🎯</div>
+
+<div class="dashboard">
+  <!-- تایمر -->
+  <a class="card-link" href="pomodoro.html" title="رفتن به تایمر">
+    <div class="card" id="timer-card">
+      <img src="https://img.icons8.com/ios-filled/100/000000/timer.png" alt="Timer"/>
+      <p>تایمر مطالعه</p>
+      <div class="mini-footer">
+        <span>📚 زمان مطالعه امروز</span>
+        <strong id="timer-today">00:00</strong>
+      </div>
+    </div>
+  </a>
+
+  <!-- ردیاب حالت -->
+  <a class="card-link" href="mood.html" title="رفتن به ردیاب حالت">
+    <div class="card" id="tracker-card">
+      <img src="https://img.icons8.com/ios-filled/100/000000/today.png" alt="Mood"/>
+      <p>ردیاب حالت</p>
+      <div class="mini-footer">
+        <span>🧠 حس امروز</span>
+        <strong id="mood-today">ثبت نشده</strong>
+      </div>
+    </div>
+  </a>
+
+  <!-- چک لیست -->
+  <a class="card-link" href="checklist.html" title="رفتن به چک‌لیست">
+    <div class="card" id="checklist-card">
+      <img src="https://img.icons8.com/ios-filled/100/000000/checklist.png" alt="Checklist"/>
+      <p>چک لیست</p>
+      <div class="mini-footer">
+        <span>📝 کارهای ماندهٔ امروز</span>
+        <strong id="todo-left">0</strong>
+      </div>
+    </div>
+  </a>
+</div>
+
+<script>
+  // تاریخ امروز (کلید شمسی مثل سایر صفحات)
+  const todayKey = () => moment().format('jYYYY/jMM/jDD');
+
+  // --- fallback: اگر JS بود هم با کلیک روی div کار کنه (اختیاری)
+  try{
+    document.getElementById("timer-card").onclick = () => { window.location.href = "pomodoro.html"; };
+    document.getElementById("tracker-card").onclick = () => { window.location.href = "mood.html"; };
+    document.getElementById("checklist-card").onclick = () => { window.location.href = "checklist.html"; };
+  }catch(e){}
+
+  // ====== داده‌های پایین کارت‌ها از localStorage ======
+
+  // تایمر: تلاش برای چند کلید رایج (برحسب ثانیه). اگر JSON بود {totalSeconds:...}
+  (function fillTimer(){
+    const ymd = todayKey();
+    const candidates = [
+      `timerTotal-${ymd}`, `study-${ymd}`, `timo-timer-${ymd}`, `timer-${ymd}`, `pomodoro-${ymd}`
+    ];
+    let seconds = 0;
+    for(const k of candidates){
+      const v = localStorage.getItem(k);
+      if(!v) continue;
+      if(!isNaN(+v)) { seconds = Math.max(0,+v); if(seconds>0) break; }
+      try{
+        const obj = JSON.parse(v);
+        if(obj && typeof obj.totalSeconds === 'number') { seconds = obj.totalSeconds; if(seconds>0) break; }
+      }catch(e){}
+    }
+    const fmt = s => {
+      const h = Math.floor(s/3600), m = Math.floor((s%3600)/60);
+      return (h>0? String(h).padStart(2,'0'):'00') + ':' + String(m).padStart(2,'0');
+    };
+    document.getElementById('timer-today').textContent = fmt(seconds);
+  })();
+
+  // مود: mood-YYYY/MM/DD = {score,label,note,...}
+  (function fillMood(){
+    const ymd = todayKey();
+    const mRaw = localStorage.getItem(`mood-${ymd}`);
+    if(!mRaw){ document.getElementById('mood-today').textContent = 'ثبت نشده'; return; }
+    try{
+      const m = JSON.parse(mRaw);
+      const map = {
+        1:{label:'عصبی',emo:'😠'},
+        2:{label:'غمگین',emo:'😢'},
+        3:{label:'بی‌حوصله',emo:'😐'},
+        4:{label:'خوشحال',emo:'😊'},
+        5:{label:'هیجان‌زده',emo:'🤩'},
+      }[m.score] || {label:m.label||'—',emo:'🙂'};
+      document.getElementById('mood-today').textContent = `${map.emo} ${map.label}`;
+    }catch(e){
+      document.getElementById('mood-today').textContent = 'ثبت نشده';
+    }
+  })();
+
+  // چک‌لیست: tasks-YYYY/MM/DD = array of {text,done}
+  (function fillChecklist(){
+    const ymd = todayKey();
+    const arr = JSON.parse(localStorage.getItem(`tasks-${ymd}`) || '[]');
+    const real = arr.filter(i => (i?.text||'').trim().length>0);
+    const left = real.filter(i => !i.done).length;
+    document.getElementById('todo-left').textContent = left;
+  })();
+</script>
+
+<script>
+  // ثبت SW (برای PWA)
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('sw.js').catch(()=>{});
+    });
+  }
+</script>
+
+</body>
+</html>
