@@ -159,11 +159,36 @@
   }
   async function apiAddSeconds(seconds, session) {
     const d = todayKey();
-    await fetch('/api/timer/addSeconds', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ date: d, seconds, session })
-    });
+    // همیشه sessionType را 'work' تنظیم کن
+    const sessionType = 'work';
+    console.log('apiAddSeconds called with:', { seconds, session, sessionType });
+    
+    try {
+      // ارسال ساده بدون object session - فقط seconds و sessionType
+      // FINAL VERSION - NO SESSION OBJECT
+      const response = await fetch('/api/timer/addSeconds', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          date: d, 
+          seconds: seconds, 
+          sessionType: sessionType 
+        })
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('API error:', response.status, errorText);
+        throw new Error(`API error: ${response.status} ${errorText}`);
+      }
+      
+      const result = await response.json();
+      console.log('Timer saved successfully:', result);
+      return result;
+    } catch (error) {
+      console.error('Error in apiAddSeconds:', error);
+      throw error;
+    }
   }
   async function apiRange(fromYMD, toYMD) {
     const r = await fetch(`/api/timer/range?from=${encodeURIComponent(fromYMD)}&to=${encodeURIComponent(toYMD)}`).then(r=>r.json());
@@ -191,7 +216,7 @@
         if(isStudy){
           // پایان فاز مطالعه ← ذخیره در سرور
           const endISO = new Date().toISOString();
-          apiAddSeconds(studyTime, { start: sessionStart, end: endISO, seconds: studyTime }).then(updateTodayLine);
+          apiAddSeconds(studyTime, null).then(updateTodayLine).catch(err => console.error('Error saving timer:', err));
           sessionStart = null; accSeconds = 0;
 
           isStudy=false; remaining=breakTime; document.getElementById('modeBox').textContent='زمان استراحت ☕'; setBg(false); toast('مطالعه تمام شد، استراحت کن ☕');
@@ -206,18 +231,18 @@
   document.getElementById('start').onclick = startTimer;
   document.getElementById('pause').onclick = ()=>{
     clearInterval(interval); if(!isRunning) return; isRunning=false;
-    if(isStudy && accSeconds>0){ const endISO=new Date().toISOString(); apiAddSeconds(accSeconds,{start:sessionStart,end:endISO,seconds:accSeconds}).then(updateTodayLine); }
+    if(isStudy && accSeconds>0){ const endISO=new Date().toISOString(); apiAddSeconds(accSeconds, null).then(updateTodayLine).catch(err => console.error('Error saving timer:', err)); }
     sessionStart=null; accSeconds=0;
   };
   document.getElementById('reset').onclick = ()=>{
     clearInterval(interval); isRunning=false;
-    if(isStudy && accSeconds>0){ const endISO=new Date().toISOString(); apiAddSeconds(accSeconds,{start:sessionStart,end:endISO,seconds:accSeconds}).then(updateTodayLine); }
+    if(isStudy && accSeconds>0){ const endISO=new Date().toISOString(); apiAddSeconds(accSeconds, null).then(updateTodayLine).catch(err => console.error('Error saving timer:', err)); }
     sessionStart=null; accSeconds=0;
 
     isStudy=true; remaining=studyTime; document.getElementById('modeBox').textContent='زمان مطالعه 📚'; setBg(true); updateTimer();
   };
   document.getElementById('end').onclick = ()=>{
-    clearInterval(interval); if(isStudy && accSeconds>0){ const endISO=new Date().toISOString(); apiAddSeconds(accSeconds,{start:sessionStart,end:endISO,seconds:accSeconds}).then(updateTodayLine); }
+    clearInterval(interval); if(isStudy && accSeconds>0){ const endISO=new Date().toISOString(); apiAddSeconds(accSeconds, null).then(updateTodayLine).catch(err => console.error('Error saving timer:', err)); }
     isRunning=false; sessionStart=null; accSeconds=0;
     remaining=studyTime; updateTimer(); toast('تایم مطالعه ثبت شد ✅');
   };

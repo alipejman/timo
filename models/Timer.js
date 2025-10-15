@@ -11,6 +11,10 @@ const timerSchema = new mongoose.Schema({
     type: Number, // مدت زمان به ثانیه
     required: true
   },
+  date: {
+    type: String, // تاریخ شمسی
+    required: true
+  },
   completedAt: {
     type: Date,
     default: Date.now

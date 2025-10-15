@@ -128,16 +128,27 @@
   const showJalaliDate=()=>{document.getElementById('date').textContent=moment().locale('fa').format('dddd، D MMMM YYYY')}; showJalaliDate();
 
   const todayKey = () => moment().format('jYYYY/jMM/jDD');
-  const moodMap=[{score:1,label:'عصبی',emo:'😠'},{score:2,label:'غمگین',emo:'😢'},{score:3,label:'بی‌حوصله',emo:'😐'},{score:4,label:'خوشحال',emo:'😊'},{score:5,label:'هیجان‌زده',emo:'🤩'}];
+  const moodMap=[{label:'عصبی',emo:'😠'},{label:'غمگین',emo:'😢'},{label:'بی‌حوصله',emo:'😐'},{label:'خوشحال',emo:'😊'},{label:'هیجان‌زده',emo:'🤩'}];
 
   // API helpers
   const apiGetMood = async (d) => fetch(`/api/mood?date=${encodeURIComponent(d)}`).then(r=>r.json());
-  const apiSaveMood = async (d, mood, note) => fetch('/api/mood/save', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ date:d, mood, note })}).then(r=>r.json());
+  const apiSaveMood = async (d, mood, note) => {
+    const response = await fetch('/api/mood/save', { 
+      method:'POST', 
+      headers:{'Content-Type':'application/json'}, 
+      body: JSON.stringify({ date:d, mood, note })
+    });
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`API error: ${response.status} ${errorText}`);
+    }
+    return response.json();
+  };
   const apiRange = async (from,to) => fetch(`/api/mood/range?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`).then(r=>r.json());
 
   // UI
   const row=document.getElementById('moodRow'); let selected=null; const noteEl=document.getElementById('note');
-  function renderMoods(){ row.innerHTML=''; moodMap.forEach(m=>{ const b=document.createElement('button'); b.className='mood'+(selected===m.score?' active':''); b.innerHTML=`<div style="font-size:24px">${m.emo}</div><div style="font-size:13px;font-weight:700">${m.label}</div>`; b.onclick=()=>{selected=m.score; renderMoods();}; row.appendChild(b); }); }
+  function renderMoods(){ row.innerHTML=''; moodMap.forEach((m,i)=>{ const b=document.createElement('button'); b.className='mood'+(selected===(i+1)?' active':''); b.innerHTML=`<div style="font-size:24px">${m.emo}</div><div style="font-size:13px;font-weight:700">${m.label}</div>`; b.onclick=()=>{selected=i+1; renderMoods();}; row.appendChild(b); }); }
 
   // Load today from server
   (async function initToday(){
@@ -154,10 +165,17 @@
   document.getElementById('saveBtn').onclick=async()=>{
     if(!selected) return alert('لطفاً مود امروز را انتخاب کن.');
     const d = todayKey();
-    await apiSaveMood(d, selected, noteEl.value.trim());
-    document.getElementById('saveHint').style.display='inline';
-    setTimeout(()=>document.getElementById('saveHint').style.display='none',1200);
-    recomputeStats();
+    try {
+      console.log('Saving mood:', { date: d, mood: selected, note: noteEl.value.trim() });
+      const result = await apiSaveMood(d, selected, noteEl.value.trim());
+      console.log('Mood saved successfully:', result);
+      document.getElementById('saveHint').style.display='inline';
+      setTimeout(()=>document.getElementById('saveHint').style.display='none',1200);
+      recomputeStats();
+    } catch (error) {
+      console.error('Error saving mood:', error);
+      alert('خطا در ذخیره mood: ' + error.message);
+    }
   };
 
   async function recomputeStats(){
@@ -211,13 +229,20 @@
 
     // آمار کلی
     const counts=[0,0,0,0,0];
-    (docs||[]).forEach(d=>{ if(d.mood!=null) counts[d.mood-1]++; });
+    (docs||[]).forEach(d=>{ 
+      if(d.mood!=null && d.mood>=1 && d.mood<=5) {
+        counts[d.mood-1]++; 
+      }
+    });
     const total = counts.reduce((a,b)=>a+b,0)||1;
     const pct = counts.map(n=>Math.round(n/total*100));
+    
+    console.log('Mood stats:', {counts, total, pct, docs: docs?.length || 0});
     ['rb-ang','rb-sad','rb-bored','rb-happy','rb-excited'].forEach((id,i)=>{const el=document.getElementById(id); if(el) el.style.width=pct[i]+'%';});
     ['rt-ang','rt-sad','rt-bored','rt-happy','rt-excited'].forEach((id,i)=>{const el=document.getElementById(id); if(el) el.textContent=pct[i]+'%';});
     const maxIdx = counts.indexOf(Math.max(...counts));
-    document.getElementById('avgRange').textContent = (total>0 ? `حس غالب: ${moodMap[maxIdx].emo} ${moodMap[maxIdx].label}` : '—');
+    const dominantMood = (total>0 && maxIdx>=0 && maxIdx<moodMap.length && moodMap[maxIdx]) ? moodMap[maxIdx] : null;
+    document.getElementById('avgRange').textContent = (dominantMood && dominantMood.emo && dominantMood.label ? `حس غالب: ${dominantMood.emo} ${dominantMood.label}` : '—');
 
     if (dailyOnly) {
       daysList.innerHTML='';
@@ -226,7 +251,19 @@
         const k=c.format('jYYYY/jMM/jDD'); const m=byDate[k];
         const daily=document.createElement('div'); daily.className='daily-card';
         const head=document.createElement('div'); head.className='daily-head';
-        if(m && m.mood!=null){ const map=moodMap[m.mood-1]; head.innerHTML=`<span>${c.locale('fa').format('dddd jD jMMMM')}</span><span class="badge-soft">${map.emo} ${map.label}</span>`; }
+        if(m && m.mood!=null && m.mood>=1 && m.mood<=5){ 
+          const mapIndex = m.mood - 1;
+          if(mapIndex >= 0 && mapIndex < moodMap.length){
+            const map = moodMap[mapIndex];
+            if(map && map.emo && map.label){
+              head.innerHTML=`<span>${c.locale('fa').format('dddd jD jMMMM')}</span><span class="badge-soft">${map.emo} ${map.label}</span>`; 
+            } else {
+              head.innerHTML=`<span>${c.locale('fa').format('dddd jD jMMMM')}</span><span class="badge-soft">ثبت نشده</span>`; 
+            }
+          } else {
+            head.innerHTML=`<span>${c.locale('fa').format('dddd jD jMMMM')}</span><span class="badge-soft">ثبت نشده</span>`; 
+          }
+        }
         else{ head.innerHTML=`<span>${c.locale('fa').format('dddd jD jMMMM')}</span><span class="badge-soft">ثبت نشده</span>`; }
         const body=document.createElement('div'); body.className='mt-1 mini'; body.textContent = (m && m.note)? ('یادداشت: '+m.note) : (m ? 'یادداشتی ثبت نشده.' : 'ثبت نشده — از حال آن روز خبر نداریم.');
         daily.appendChild(head); daily.appendChild(body); daysList.appendChild(daily);

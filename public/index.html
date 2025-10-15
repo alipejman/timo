@@ -115,56 +115,86 @@
 
   // ====== داده‌های پایین کارت‌ها از localStorage ======
 
-  // تایمر: تلاش برای چند کلید رایج (برحسب ثانیه). اگر JSON بود {totalSeconds:...}
-  (function fillTimer(){
+  // تایمر: از API دریافت کن
+  (async function fillTimer(){
     const ymd = todayKey();
-    const candidates = [
-      `timerTotal-${ymd}`, `study-${ymd}`, `timo-timer-${ymd}`, `timer-${ymd}`, `pomodoro-${ymd}`
-    ];
-    let seconds = 0;
-    for(const k of candidates){
-      const v = localStorage.getItem(k);
-      if(!v) continue;
-      if(!isNaN(+v)) { seconds = Math.max(0,+v); if(seconds>0) break; }
-      try{
-        const obj = JSON.parse(v);
-        if(obj && typeof obj.totalSeconds === 'number') { seconds = obj.totalSeconds; if(seconds>0) break; }
-      }catch(e){}
+    try{
+      const response = await fetch(`/api/timer?date=${encodeURIComponent(ymd)}`);
+      if(!response.ok) throw new Error('API error');
+      const data = await response.json();
+      
+      const totalWork = data.totalWork || 0;
+      const fmt = s => {
+        const h = Math.floor(s/60), m = Math.floor(s%60);
+        return (h>0? String(h).padStart(2,'0'):'00') + ':' + String(m).padStart(2,'0');
+      };
+      document.getElementById('timer-today').textContent = fmt(totalWork);
+    }catch(e){
+      document.getElementById('timer-today').textContent = '00:00';
     }
-    const fmt = s => {
-      const h = Math.floor(s/3600), m = Math.floor((s%3600)/60);
-      return (h>0? String(h).padStart(2,'0'):'00') + ':' + String(m).padStart(2,'0');
-    };
-    document.getElementById('timer-today').textContent = fmt(seconds);
   })();
 
-  // مود: mood-YYYY/MM/DD = {score,label,note,...}
-  (function fillMood(){
+  // مود: از API دریافت کن
+  (async function fillMood(){
     const ymd = todayKey();
-    const mRaw = localStorage.getItem(`mood-${ymd}`);
-    if(!mRaw){ document.getElementById('mood-today').textContent = 'ثبت نشده'; return; }
     try{
-      const m = JSON.parse(mRaw);
+      const response = await fetch(`/api/mood?date=${encodeURIComponent(ymd)}`);
+      if(!response.ok) throw new Error('API error');
+      const m = await response.json();
+      
+      console.log('Mood API response:', m); // برای دیباگ
+      
+      if(!m || m.mood === null || m.mood === undefined){ 
+        document.getElementById('mood-today').textContent = 'ثبت نشده'; 
+        return; 
+      }
+      
+      // اگر mood = 3 (بی‌حوصله) است، آن را نمایش بده
+      if(m.mood === 3){
+        document.getElementById('mood-today').textContent = '😐 بی‌حوصله';
+        return;
+      }
+      
+      // اگر mood = 4 (خوشحال) است، آن را نمایش بده
+      if(m.mood === 4){
+        document.getElementById('mood-today').textContent = '😊 خوشحال';
+        return;
+      }
+      
+      // اگر mood = 5 (هیجان‌زده) است، آن را نمایش بده
+      if(m.mood === 5){
+        document.getElementById('mood-today').textContent = '🤩 هیجان‌زده';
+        return;
+      }
+      
       const map = {
         1:{label:'عصبی',emo:'😠'},
         2:{label:'غمگین',emo:'😢'},
         3:{label:'بی‌حوصله',emo:'😐'},
         4:{label:'خوشحال',emo:'😊'},
         5:{label:'هیجان‌زده',emo:'🤩'},
-      }[m.score] || {label:m.label||'—',emo:'🙂'};
+      }[m.mood] || {label:'—',emo:'🙂'};
       document.getElementById('mood-today').textContent = `${map.emo} ${map.label}`;
     }catch(e){
+      console.error('Mood API error:', e);
       document.getElementById('mood-today').textContent = 'ثبت نشده';
     }
   })();
 
-  // چک‌لیست: tasks-YYYY/MM/DD = array of {text,done}
-  (function fillChecklist(){
+  // چک‌لیست: از API دریافت کن
+  (async function fillChecklist(){
     const ymd = todayKey();
-    const arr = JSON.parse(localStorage.getItem(`tasks-${ymd}`) || '[]');
-    const real = arr.filter(i => (i?.text||'').trim().length>0);
-    const left = real.filter(i => !i.done).length;
-    document.getElementById('todo-left').textContent = left;
+    try{
+      const response = await fetch(`/api/checklist?date=${encodeURIComponent(ymd)}`);
+      if(!response.ok) throw new Error('API error');
+      const data = await response.json();
+      
+      const items = data.items || [];
+      const left = items.filter(i => !i.completed).length;
+      document.getElementById('todo-left').textContent = left;
+    }catch(e){
+      document.getElementById('todo-left').textContent = '0';
+    }
   })();
 </script>
 
