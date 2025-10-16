@@ -3,7 +3,17 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
+<meta http-equiv="Pragma" content="no-cache"/>
+<meta http-equiv="Expires" content="0"/>
 <title>Timo Mood Tracker</title>
+<script src="js/auth.js"></script>
+<script>
+  // Check authentication
+  if (!window.AuthUtils.requireAuth()) {
+    // Redirect will happen automatically
+  }
+</script>
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/jalali-moment/dist/jalali-moment.browser.js"></script>
@@ -41,6 +51,188 @@
   .daily-head{display:flex;justify-content:space-between;align-items:center;font-weight:800}
   .badge-soft{background:#00000010;border:1px solid #00000015;padding:2px 8px;border-radius:999px;font-size:12px;color:#555}
   .mini{font-size:12px;color:#6b7280}
+
+  /* Mobile Responsive Styles */
+  @media (max-width: 768px) {
+    .wrap {
+      width: 95vw;
+      margin: 60px auto 40px;
+      padding: 0 10px;
+    }
+    
+    .cardx {
+      padding: 16px;
+      border-radius: 20px;
+    }
+    
+    .topbar {
+      flex-direction: column;
+      gap: 15px;
+      align-items: stretch;
+    }
+    
+    .btn-pill {
+      padding: 8px 14px;
+      font-size: 14px;
+    }
+    
+    .moods {
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin: 12px 0;
+    }
+    
+    .mood {
+      padding: 10px;
+      border-radius: 12px;
+      gap: 4px;
+    }
+    
+    .note {
+      padding: 8px;
+      min-height: 70px;
+      font-size: 14px;
+    }
+    
+    .stats {
+      margin-top: 20px;
+    }
+    
+    .row-mini {
+      gap: 8px;
+      margin-top: 6px;
+    }
+    
+    .bar {
+      height: 8px;
+    }
+    
+    .chip {
+      padding: 2px 6px;
+      font-size: 11px;
+    }
+    
+    .dot {
+      width: 7px;
+      height: 7px;
+    }
+    
+    .mini {
+      font-size: 11px;
+    }
+    
+    .modalx {
+      width: 95vw;
+      max-height: 90vh;
+      border-radius: 20px;
+    }
+    
+    .modal-body {
+      padding: 12px;
+    }
+    
+    .daily-card {
+      padding: 10px;
+      border-radius: 12px;
+    }
+    
+    .daily-head {
+      font-size: 14px;
+    }
+    
+    .badge-soft {
+      font-size: 11px;
+      padding: 1px 6px;
+    }
+  }
+
+  @media (max-width: 480px) {
+    .wrap {
+      width: 98vw;
+      margin: 50px auto 30px;
+      padding: 0 5px;
+    }
+    
+    .cardx {
+      padding: 12px;
+      border-radius: 16px;
+    }
+    
+    .topbar {
+      gap: 12px;
+    }
+    
+    .btn-pill {
+      padding: 6px 12px;
+      font-size: 13px;
+    }
+    
+    .moods {
+      grid-template-columns: repeat(2, 1fr);
+      gap: 6px;
+      margin: 10px 0;
+    }
+    
+    .mood {
+      padding: 8px;
+      border-radius: 10px;
+    }
+    
+    .note {
+      padding: 6px;
+      min-height: 60px;
+      font-size: 13px;
+    }
+    
+    .stats {
+      margin-top: 15px;
+    }
+    
+    .row-mini {
+      gap: 6px;
+      margin-top: 5px;
+    }
+    
+    .bar {
+      height: 6px;
+    }
+    
+    .chip {
+      padding: 1px 5px;
+      font-size: 10px;
+    }
+    
+    .dot {
+      width: 6px;
+      height: 6px;
+    }
+    
+    .mini {
+      font-size: 10px;
+    }
+    
+    .modalx {
+      width: 98vw;
+      border-radius: 16px;
+    }
+    
+    .modal-body {
+      padding: 10px;
+    }
+    
+    .daily-card {
+      padding: 8px;
+    }
+    
+    .daily-head {
+      font-size: 13px;
+    }
+    
+    .badge-soft {
+      font-size: 10px;
+      padding: 1px 4px;
+    }
+  }
 </style>
 
 <link rel="manifest" href="manifest.json">
@@ -131,11 +323,25 @@
   const moodMap=[{label:'عصبی',emo:'😠'},{label:'غمگین',emo:'😢'},{label:'بی‌حوصله',emo:'😐'},{label:'خوشحال',emo:'😊'},{label:'هیجان‌زده',emo:'🤩'}];
 
   // API helpers
-  const apiGetMood = async (d) => fetch(`/api/mood?date=${encodeURIComponent(d)}`).then(r=>r.json());
+  const apiGetMood = async (d) => {
+    const headers = window.AuthUtils.getAuthHeaders();
+    if (!headers) {
+      console.error('No token available for apiGetMood');
+      return { mood: null };
+    }
+    return fetch(`/api/mood?date=${encodeURIComponent(d)}&t=${Date.now()}`, {
+      headers: headers
+    }).then(r=>r.json());
+  };
   const apiSaveMood = async (d, mood, note) => {
+    const headers = window.AuthUtils.getAuthHeaders();
+    if (!headers) {
+      console.error('No token available for apiSaveMood');
+      throw new Error('No authentication token');
+    }
     const response = await fetch('/api/mood/save', { 
       method:'POST', 
-      headers:{'Content-Type':'application/json'}, 
+      headers: headers, 
       body: JSON.stringify({ date:d, mood, note })
     });
     if (!response.ok) {
@@ -144,7 +350,26 @@
     }
     return response.json();
   };
-  const apiRange = async (from,to) => fetch(`/api/mood/range?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`).then(r=>r.json());
+  const apiRange = async (from,to) => {
+    try {
+      const headers = window.AuthUtils.getAuthHeaders();
+      if (!headers) {
+        console.error('No token available for apiRange');
+        return [];
+      }
+      const response = await fetch(`/api/mood/range?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&t=${Date.now()}`, {
+        headers: headers
+      });
+      if (!response.ok) {
+        console.error('API Range Error:', response.status);
+        return [];
+      }
+      return await response.json();
+    } catch (error) {
+      console.error('API Range Error:', error);
+      return [];
+    }
+  };
 
   // UI
   const row=document.getElementById('moodRow'); let selected=null; const noteEl=document.getElementById('note');
@@ -152,14 +377,36 @@
 
   // Load today from server
   (async function initToday(){
+    // Wait a bit to ensure page is fully loaded
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
     const d = todayKey();
+    console.log('Mood - Initializing today with date:', d);
+    
+    // Check if token exists before making API calls
+    if (!window.AuthUtils.isAuthenticated()) {
+      console.error('Mood - No token available during initToday, skipping API calls');
+      renderMoods();
+      return;
+    }
+    
     try{
+      console.log('Mood - Calling apiGetMood...');
       const data = await apiGetMood(d);
+      console.log('Mood - apiGetMood response:', data);
       selected = data && data.mood != null ? Number(data.mood) : null;
       noteEl.value = (data && data.note) || '';
-    }catch{}
+    }catch(error){
+      console.error('Mood - Error in apiGetMood:', error);
+    }
     renderMoods();
-    recomputeStats();
+    
+    try{
+      console.log('Mood - Calling recomputeStats...');
+      await recomputeStats();
+    }catch(error){
+      console.error('Mood - Error in recomputeStats:', error);
+    }
   })();
 
   document.getElementById('saveBtn').onclick=async()=>{

@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>Timo - ورود</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+    <script src="js/auth.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        :root{ --bg1:#f6d365; --bg2:#fda085; --ink:#2d2d2d; }
+        *{box-sizing:border-box}
+        body{
+            margin:0; padding:0; min-height:100vh; font-family:'Vazirmatn',sans-serif;
+            background:linear-gradient(135deg,var(--bg1),var(--bg2));
+            display:flex; flex-direction:column; align-items:center; justify-content:center;
+        }
+        .auth-container {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 2rem;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            width: 100%;
+            max-width: 400px;
+            backdrop-filter: blur(10px);
+        }
+        .auth-title {
+            text-align: center;
+            color: var(--ink);
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 2rem;
+        }
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+        .form-label {
+            color: var(--ink);
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+        .form-control {
+            border: 2px solid #e9ecef;
+            border-radius: 10px;
+            padding: 0.75rem;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+        }
+        .form-control:focus {
+            border-color: var(--bg1);
+            box-shadow: 0 0 0 0.2rem rgba(246, 211, 101, 0.25);
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, var(--bg1), var(--bg2));
+            border: none;
+            border-radius: 10px;
+            padding: 0.75rem 2rem;
+            font-weight: 600;
+            width: 100%;
+            transition: all 0.3s ease;
+        }
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+        }
+        .auth-link {
+            text-align: center;
+            margin-top: 1.5rem;
+        }
+        .auth-link a {
+            color: var(--ink);
+            text-decoration: none;
+            font-weight: 600;
+        }
+        .auth-link a:hover {
+            text-decoration: underline;
+        }
+        .alert {
+            border-radius: 10px;
+            margin-bottom: 1rem;
+        }
+
+        /* Mobile Responsive Styles */
+        @media (max-width: 768px) {
+            body {
+                padding: 20px 15px;
+            }
+            
+            .auth-container {
+                padding: 1.5rem;
+                max-width: 100%;
+                border-radius: 16px;
+            }
+            
+            .auth-title {
+                font-size: 1.5rem;
+                margin-bottom: 1.5rem;
+            }
+            
+            .form-group {
+                margin-bottom: 1.2rem;
+            }
+            
+            .form-control {
+                padding: 0.6rem;
+                font-size: 0.9rem;
+            }
+            
+            .btn-primary {
+                padding: 0.7rem 1.5rem;
+                font-size: 0.9rem;
+            }
+            
+            .auth-link {
+                margin-top: 1.2rem;
+            }
+            
+            .auth-link a {
+                font-size: 0.9rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            body {
+                padding: 15px 10px;
+            }
+            
+            .auth-container {
+                padding: 1.2rem;
+                border-radius: 12px;
+            }
+            
+            .auth-title {
+                font-size: 1.3rem;
+                margin-bottom: 1.2rem;
+            }
+            
+            .form-group {
+                margin-bottom: 1rem;
+            }
+            
+            .form-control {
+                padding: 0.5rem;
+                font-size: 0.85rem;
+            }
+            
+            .btn-primary {
+                padding: 0.6rem 1.2rem;
+                font-size: 0.85rem;
+            }
+            
+            .auth-link {
+                margin-top: 1rem;
+            }
+            
+            .auth-link a {
+                font-size: 0.85rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="auth-container">
+        <h1 class="auth-title">ورود به تیمو</h1>
+        
+        <div id="alertContainer"></div>
+        
+        <form id="loginForm">
+            <div class="form-group">
+                <label for="username" class="form-label">نام کاربری</label>
+                <input type="text" class="form-control" id="username" name="username" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="password" class="form-label">رمز عبور</label>
+                <input type="password" class="form-control" id="password" name="password" required>
+            </div>
+            
+            <button type="submit" class="btn btn-primary">ورود</button>
+        </form>
+        
+        <div class="auth-link">
+            <p>حساب کاربری ندارید؟ <a href="register.html">ثبت نام کنید</a></p>
+        </div>
+    </div>
+
+    <script>
+        // Check if user is already logged in
+        const token = localStorage.getItem('token');
+        if (token) {
+            window.location.href = 'index.html';
+        }
+
+        // Login form handler
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const formData = new FormData(e.target);
+            const data = {
+                username: formData.get('username'),
+                password: formData.get('password')
+            };
+
+            try {
+                const response = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    console.log('=== LOGIN SUCCESSFUL ===');
+                    console.log('Login response result:', result);
+                    console.log('Token received:', result.token ? 'exists' : 'missing');
+                    console.log('User received:', result.user);
+                    
+                    // Use the new cookie-based storage
+                    if (typeof window.AuthUtils !== 'undefined') {
+                        console.log('Using AuthUtils.storeAuth()...');
+                        window.AuthUtils.storeAuth(result.token, result.user);
+                    } else {
+                        console.error('AuthUtils not available, falling back to manual storage');
+                        // Fallback to manual storage
+                        localStorage.setItem('token', result.token);
+                        localStorage.setItem('user', JSON.stringify(result.user));
+                        
+                        // Set cookies manually
+                        document.cookie = `token=${result.token};expires=${new Date(Date.now() + 7*24*60*60*1000).toUTCString()};path=/;SameSite=Lax`;
+                        document.cookie = `user=${JSON.stringify(result.user)};expires=${new Date(Date.now() + 7*24*60*60*1000).toUTCString()};path=/;SameSite=Lax`;
+                    }
+                    
+                    // Verify storage
+                    console.log('=== STORAGE VERIFICATION ===');
+                    console.log('localStorage token:', localStorage.getItem('token') ? 'exists' : 'missing');
+                    console.log('localStorage user:', localStorage.getItem('user') ? 'exists' : 'missing');
+                    console.log('Cookie token:', document.cookie.includes('token=') ? 'exists' : 'missing');
+                    console.log('All cookies:', document.cookie);
+                    
+                    // Wait a bit to ensure storage is complete
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                    
+                    // Final verification
+                    console.log('=== FINAL VERIFICATION ===');
+                    const finalToken = localStorage.getItem('token') || (document.cookie.match(/token=([^;]+)/) || [])[1];
+                    console.log('Final token check:', finalToken ? 'exists' : 'missing');
+                    
+                    if (!finalToken) {
+                        console.error('CRITICAL: Token was lost after storage!');
+                        showAlert('خطا در ذخیره توکن. لطفاً دوباره تلاش کنید.', 'danger');
+                        return;
+                    }
+                    
+                    // Redirect to dashboard
+                    console.log('=== REDIRECTING TO DASHBOARD ===');
+                    window.location.href = 'index.html';
+                } else {
+                    showAlert(result.error || 'خطا در ورود', 'danger');
+                }
+            } catch (error) {
+                console.error('Login error:', error);
+                showAlert('خطا در اتصال به سرور', 'danger');
+            }
+        });
+
+        function showAlert(message, type) {
+            const alertContainer = document.getElementById('alertContainer');
+            alertContainer.innerHTML = `
+                <div class="alert alert-${type} alert-dismissible fade show" role="alert">
+                    ${message}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            `;
+        }
+    </script>
+</body>
+</html>

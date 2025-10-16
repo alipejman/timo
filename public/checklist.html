@@ -3,7 +3,17 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
+<meta http-equiv="Pragma" content="no-cache"/>
+<meta http-equiv="Expires" content="0"/>
 <title>Timo Checklist</title>
+<script src="js/auth.js?v=20251016190000"></script>
+<script>
+  // Check authentication
+  if (!window.AuthUtils.requireAuth()) {
+    // Redirect will happen automatically
+  }
+</script>
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/jalali-moment/dist/jalali-moment.browser.js"></script>
@@ -60,6 +70,151 @@
 
   /* Tooltip floating */
   .tooltipx{position:fixed;z-index:9999;background:#111827;color:#fff;padding:8px 10px;border-radius:10px;font-size:12px;max-width:60vw;box-shadow:0 8px 18px rgba(0,0,0,.3);display:none;white-space:normal;line-height:1.6}
+
+  /* Mobile Responsive Styles */
+  @media (max-width: 768px) {
+    .wrap {
+      width: 95vw;
+      margin: 60px auto 40px;
+      padding: 0 10px;
+    }
+    
+    .cardx {
+      padding: 16px;
+      border-radius: 20px;
+    }
+    
+    .topbar {
+      flex-direction: column;
+      gap: 15px;
+      align-items: stretch;
+    }
+    
+    .group {
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+    
+    .btn-pill {
+      padding: 8px 14px;
+      font-size: 14px;
+    }
+    
+    .progress-outer {
+      height: 16px;
+    }
+    
+    li.task {
+      padding: 10px;
+      gap: 8px;
+    }
+    
+    .check {
+      width: 20px;
+      height: 20px;
+    }
+    
+    .txt {
+      font-size: 14px;
+      padding: 4px 8px;
+    }
+    
+    .del {
+      font-size: 16px;
+    }
+    
+    .modalx {
+      width: 95vw;
+      max-height: 90vh;
+      border-radius: 20px;
+    }
+    
+    .modal-body {
+      padding: 12px;
+    }
+    
+    .modal-card {
+      padding: 10px;
+      border-radius: 14px;
+    }
+    
+    .chip {
+      padding: 3px 8px;
+      font-size: 11px;
+    }
+    
+    .day-card {
+      padding: 10px;
+      border-radius: 12px;
+    }
+    
+    .stat-row {
+      gap: 8px;
+    }
+    
+    .bar-mini {
+      height: 6px;
+    }
+    
+    .mini {
+      font-size: 11px;
+    }
+  }
+
+  @media (max-width: 480px) {
+    .wrap {
+      width: 98vw;
+      margin: 50px auto 30px;
+      padding: 0 5px;
+    }
+    
+    .cardx {
+      padding: 12px;
+      border-radius: 16px;
+    }
+    
+    .topbar {
+      gap: 12px;
+    }
+    
+    .btn-pill {
+      padding: 6px 12px;
+      font-size: 13px;
+    }
+    
+    li.task {
+      padding: 8px;
+      gap: 6px;
+    }
+    
+    .check {
+      width: 18px;
+      height: 18px;
+    }
+    
+    .txt {
+      font-size: 13px;
+      padding: 3px 6px;
+    }
+    
+    .modalx {
+      width: 98vw;
+      border-radius: 16px;
+    }
+    
+    .modal-body {
+      padding: 10px;
+    }
+    
+    .day-card {
+      padding: 8px;
+    }
+    
+    .chip {
+      padding: 2px 6px;
+      font-size: 10px;
+    }
+  }
 </style>
 
 <link rel="manifest" href="manifest.json">
@@ -162,17 +317,51 @@
   const delKey   = ymd => `deleted-${ymd}`;
   const defKey   = ymd => `postponed-${ymd}`;
   const rollKey  = ymd => `carry-done-${ymd}`;
-  const read=(ymd=todayKey())=>JSON.parse(localStorage.getItem(keyFor(ymd))||'[]');
-  const write=(items,ymd=todayKey())=>localStorage.setItem(keyFor(ymd),JSON.stringify(items));
-  const readDeleted=(ymd=todayKey())=>JSON.parse(localStorage.getItem(delKey(ymd))||'[]');
-  const addDeleted=(item,ymd=todayKey())=>{const arr=readDeleted(ymd);arr.push({id:item.id,text:item.text,at:Date.now()});localStorage.setItem(delKey(ymd),JSON.stringify(arr));};
-  const readPostponed=(ymd=todayKey())=>JSON.parse(localStorage.getItem(defKey(ymd))||'[]');
-  const addPostponed=(arr,ymd=todayKey())=>{const prev=readPostponed(ymd);localStorage.setItem(defKey(ymd),JSON.stringify(prev.concat(arr)));};
+  // توابع گزارش‌گیری - استفاده از API به جای localStorage
+  async function apiGet(d) {
+    const headers = window.AuthUtils.getAuthHeaders();
+    if (!headers) {
+      console.error('No token available for apiGet');
+      return { items: [] };
+    }
+    const res = await fetch(`/api/checklist?date=${encodeURIComponent(d)}&t=${Date.now()}`, {
+      headers: headers
+    });
+    if (!res.ok) throw new Error('get_failed');
+    return res.json();
+  }
+  
+  const read = async (ymd=todayKey()) => {
+    try {
+      const response = await apiGet(ymd);
+      return response && response.items ? response.items : [];
+    } catch (error) {
+      console.error('Error reading from API:', error);
+      return [];
+    }
+  };
+  
+  const readDeleted = async (ymd=todayKey()) => {
+    // در حال حاضر حذف‌شده‌ها در API ذخیره نمی‌شوند
+    return [];
+  };
+  
+  const readPostponed = async (ymd=todayKey()) => {
+    // در حال حاضر موکول‌شده‌ها در API ذخیره نمی‌شوند
+    return [];
+  };
+  
+  // توابع localStorage برای سازگاری (غیرفعال)
+  const write=(items,ymd=todayKey())=>{}; // غیرفعال
+  const addDeleted=(item,ymd=todayKey())=>{}; // غیرفعال
+  const addPostponed=(arr,ymd=todayKey())=>{}; // غیرفعال
 
   // UI tasks
   const list=document.getElementById('list');
   function makeItem(d={id:crypto.randomUUID(),text:'',done:false}){
-    const li=document.createElement('li');li.className='task'+(d.done?' done':'');li.dataset.id=d.id;
+    // تبدیل _id به id برای سازگاری
+    const itemId = d._id || d.id || crypto.randomUUID();
+    const li=document.createElement('li');li.className='task'+(d.done?' done':'');li.dataset.id=itemId;
     const cb=document.createElement('input');cb.type='checkbox';cb.className='check';cb.checked=!!d.done;
     const input=document.createElement('input');input.type='text';input.className='txt';input.placeholder='اینجا بنویس…';input.value=d.text||'';
     const del=document.createElement('button');del.className='del';del.title='حذف';del.innerHTML='🗑️';
@@ -185,20 +374,94 @@
     del.addEventListener('click',()=>{const item={id:li.dataset.id,text:input.value.trim(),done:cb.checked}; addDeleted(item); li.remove(); save(); refreshProgress(); updateEmptyHint();});
     return li;
   }
-  const collect=()=>[...list.children].map(li=>({id:li.dataset.id,text:li.querySelector('.txt').value.trim(),done:li.querySelector('.check').checked}));
+  const collect=()=>{
+    const allItems = [...list.children]
+      .map(li=>({id:li.dataset.id,text:li.querySelector('.txt').value.trim(),done:li.querySelector('.check').checked}));
+    
+    console.log('Collect - All items from DOM:', allItems);
+    
+    // فیلتر کردن آیتم‌های خالی (فقط برای سینک)
+    const filteredItems = allItems.filter(item => item.text.length > 0);
+    console.log('Collect - Filtered items (non-empty):', filteredItems);
+    
+    return filteredItems;
+  };
 
-  // ⬇⬇⬇ تنها تغییر مهم: بعد از ذخیرهٔ local، اگر تابع سینک وجود داشت صدا بزن
+  // ⬇⬇⬇ فقط localStorage، هیچ سینک خودکار
   const save=()=>{ 
-    write(collect()); 
-    if (window.timoSyncChecklist) window.timoSyncChecklist(); // ← سینک به سرور
+    // فقط localStorage، هیچ سینک خودکار
+    console.log('Local save only - no auto-sync');
   };
 
   let t=null; const debounceSave=()=>{clearTimeout(t);t=setTimeout(save,260)};
   const refreshProgress=()=>{const items=collect();const total=items.length,done=items.filter(i=>i.done).length;const p= total? Math.round(done/total*100):0;document.getElementById('bar').style.width=p+'%';document.getElementById('progressPercent').textContent=p+'%';};
   const updateEmptyHint=()=>{const items=[...list.children];const allDone=items.length>0 && items.every(li=>li.classList.contains('done')||!li.querySelector('.txt').value.trim());document.getElementById('emptyHint').style.display=allDone?'block':'none';};
-  function bootstrapToday(){ let items=read(); if(items.length===0){ items=Array.from({length:5}).map(()=>({id:crypto.randomUUID(),text:'',done:false})); write(items); } list.innerHTML=''; items.forEach(it=>list.appendChild(makeItem(it))); [...list.children].filter(li=>li.classList.contains('done')).forEach(li=>list.appendChild(li)); refreshProgress(); updateEmptyHint(); }
+  // استراتژی جدید: فقط از دیتابیس
+  function bootstrapToday(){ 
+    console.log('Bootstrap disabled - using database only');
+    // هیچ bootstrap نداشته باشیم
+  }
+  
+  // تابع برای رندر آیتم‌ها از سرور
+  function refreshUI(items) {
+    console.log('refreshUI called with items:', items);
+    if (!items || !Array.isArray(items)) {
+      console.log('No valid items provided to refreshUI');
+      return;
+    }
+    
+    // اگر آیتمی وجود ندارد، پیام نمایش بده
+    if (items.length === 0) {
+      list.innerHTML = '<div class="empty-message" style="text-align: center; padding: 20px; color: #666;">هیچ وظیفه‌ای موجود نیست</div>';
+      refreshProgress();
+      updateEmptyHint();
+      console.log('No items found, showing empty message');
+      return;
+    }
+    
+    // پاک کردن لیست فعلی
+    list.innerHTML = '';
+    
+    // اضافه کردن آیتم‌های جدید
+    items.forEach(item => {
+      // تبدیل completed به done برای سازگاری
+      const normalizedItem = {
+        id: item._id || item.id,
+        text: item.text || '',
+        done: item.completed || item.done || false
+      };
+      const li = makeItem(normalizedItem);
+      list.appendChild(li);
+    });
+    
+    // مرتب کردن: آیتم‌های انجام نشده بالا، انجام شده پایین
+    [...list.children].filter(li => li.classList.contains('done')).forEach(li => list.appendChild(li));
+    
+    refreshProgress();
+    updateEmptyHint();
+    console.log('refreshUI completed, items rendered:', items.length);
+  }
+  
+  // در دسترس قرار دادن تابع refreshUI
+  window.refreshUI = refreshUI;
+  
   bootstrapToday();
   document.getElementById('add').addEventListener('click',()=>{const li=makeItem(); list.insertBefore(li,[...list.children].find(x=>x.classList.contains('done'))||null); li.querySelector('.txt').focus(); save(); refreshProgress();});
+
+  // سینک قبل از بازگشت به صفحه اصلی
+  const backLink = document.querySelector('a.back-btn');
+  if (backLink) {
+    backLink.addEventListener('click', async (ev) => {
+      try {
+        ev.preventDefault();
+        if (window.AuthUtils && window.AuthUtils.isAuthenticated && window.AuthUtils.isAuthenticated()) {
+          await (window.timoSyncChecklist ? window.timoSyncChecklist() : Promise.resolve());
+        }
+      } finally {
+        window.location.href = backLink.getAttribute('href');
+      }
+    });
+  }
 
   // Report modal
   const dim=document.getElementById('dim'), reportModal=document.getElementById('reportModal');
@@ -252,18 +515,23 @@
   function setMiniBarTexts(ids,arr){ ids.forEach((id,i)=>document.getElementById(id).textContent=Math.max(0,Math.min(100,arr[i]))+'%'); }
 
   // مشاهده کلی
-  document.getElementById('rangeBtn').addEventListener('click', ()=>{
+  document.getElementById('rangeBtn').addEventListener('click', async ()=>{
     document.getElementById('errBox').style.display='none';
     const rBox=document.getElementById('rangeResult'), sBox=document.getElementById('rangeSummary');
     const from=document.getElementById('fromDate').value.trim(), to=document.getElementById('toDate').value.trim();
     document.getElementById('dailyResult').style.display='none';
     const v=validateRange(from,to); if(!v){ showErr(ERR_TXT); rBox.style.display='none'; return; }
 
+    // نمایش loading
+    sBox.innerHTML='<div class="text-center"><div class="spinner-border" role="status"><span class="visually-hidden">در حال بارگذاری...</span></div></div>';
+    rBox.style.display='block';
+
     const buckets={ok:[],warn:[],del:[],def:[]};
     const c=v.mFrom.clone();
     while(c.isSameOrBefore(v.mTo)){
-      const ymd=c.format('jYYYY/jMM/jDD'); const items=read(ymd), dels=readDeleted(ymd), defs=readPostponed(ymd);
-      items.forEach(it => (it.done?buckets.ok:buckets.warn).push({dateYMD:ymd,text:it.text}));
+      const ymd=c.format('jYYYY/jMM/jDD'); 
+      const items=await read(ymd), dels=await readDeleted(ymd), defs=await readPostponed(ymd);
+      items.forEach(it => (it.completed || it.done ? buckets.ok : buckets.warn).push({dateYMD:ymd,text:it.text}));
       (dels||[]).forEach(d=>buckets.del.push({dateYMD:ymd,text:d.text}));
       (defs||[]).forEach(p=>buckets.def.push({dateYMD:ymd,text:p.text}));
       c.add(1,'day');
@@ -285,19 +553,26 @@
   });
 
   // جزئیات روزانه (چیپ‌ها با هابر/کلیک)
-  document.getElementById('dailyBtn').addEventListener('click', ()=>{
+  document.getElementById('dailyBtn').addEventListener('click', async ()=>{
     document.getElementById('errBox').style.display='none';
     const dWrap=document.getElementById('dailyResult'), dLists=document.getElementById('dailyLists');
     const from=document.getElementById('fromDate').value.trim(), to=document.getElementById('toDate').value.trim();
     const v=validateRange(from,to); if(!v){ showErr(ERR_TXT); dWrap.style.display='none'; return; }
     document.getElementById('rangeResult').style.display='none';
 
-    dWrap.style.display='block'; dLists.innerHTML='';
+    // نمایش loading
+    dLists.innerHTML='<div class="text-center"><div class="spinner-border" role="status"><span class="visually-hidden">در حال بارگذاری...</span></div></div>';
+    dWrap.style.display='block';
+    
+    // پاک کردن loading و شروع بارگذاری داده‌ها
+    dLists.innerHTML='';
+    
     const c=v.mFrom.clone();
     while(c.isSameOrBefore(v.mTo)){
-      const ymd=c.format('jYYYY/jMM/jDD'); const items=read(ymd), dels=readDeleted(ymd), defs=readPostponed(ymd);
-      const done=items.filter(i=>i.done).map(i=>i.text);
-      const undone=items.filter(i=>!i.done).map(i=>i.text);
+      const ymd=c.format('jYYYY/jMM/jDD'); 
+      const items=await read(ymd), dels=await readDeleted(ymd), defs=await readPostponed(ymd);
+      const done=items.filter(i=>(i.completed || i.done)).map(i=>i.text);
+      const undone=items.filter(i=>(!i.completed && !i.done)).map(i=>i.text);
       const delc=(dels||[]).map(d=>d.text);
       const defc=(defs||[]).map(d=>d.text);
       const total = done.length+undone.length+delc.length+defc.length;
@@ -343,71 +618,137 @@
   const todayKey = () => moment().format('jYYYY/jMM/jDD');
   const date = todayKey();
 
-  // --- توابع API
-  async function apiGet(d) {
-    const res = await fetch(`/api/checklist?date=${encodeURIComponent(d)}`);
-    if (!res.ok) throw new Error('get_failed');
-    return res.json();
-  }
+  // --- توابع API (apiGet moved to report section)
   async function apiSave(payload) {
+    const headers = window.AuthUtils.getAuthHeaders();
+    console.log('API Save Headers:', headers);
+    console.log('API Save Payload:', payload);
+    
+    if (!headers) {
+      console.error('No token available for apiSave');
+      throw new Error('No authentication token');
+    }
+    
     const res = await fetch('/api/checklist/save', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: headers,
       body: JSON.stringify(payload),
     });
-    if (!res.ok) throw new Error('save_failed');
+    
+    console.log('API Save Response Status:', res.status);
+    if (!res.ok) {
+      const errorText = await res.text();
+      console.error('API Save Error:', errorText);
+      throw new Error('save_failed');
+    }
     return res.json();
   }
 
-  // --- خواندن/نوشتن localStorage صفحه چک‌لیست
+  // --- خواندن/نوشتن localStorage صفحه چک‌لیست (DISABLED - Use API only)
   const LS_KEY = `tasks-${date}`;
   function readLocal() {
-    const arr = JSON.parse(localStorage.getItem(LS_KEY) || '[]');
-    // پاکسازی برای سازگاری با مدل دیتابیس
-    return arr
-      .filter(i => (i?.text || '').trim().length > 0)
-      .map(i => ({ text: i.text, done: !!i.done }));
+    // Clear localStorage to prevent data mixing
+    localStorage.removeItem(LS_KEY);
+    return [];
   }
   function writeLocal(items) {
-    const clean = (items || []).map(i => ({ text: i.text || '', done: !!i.done }));
-    localStorage.setItem(LS_KEY, JSON.stringify(clean));
+    // Don't write to localStorage to prevent data mixing
+    console.log('writeLocal called but disabled to prevent data mixing');
   }
 
-  // --- 1) موقع لود: اگر روی سرور داده هست، local را با آن پر کن
-  try {
-    const server = await apiGet(date);
-    if (server && Array.isArray(server.items) && server.items.length) {
-      writeLocal(server.items);
-      // اگر تابعی برای رندر داری (مثلاً refreshUI)، صداش کن:
-      if (typeof window.refreshUI === 'function') window.refreshUI();
+  // --- 1) بارگذاری اولیه از سرور
+  (async function initializeChecklist() {
+    try {
+      console.log('Initializing checklist...');
+      
+      // بررسی احراز هویت
+    if (!window.AuthUtils.isAuthenticated()) {
+        console.log('Not authenticated, skipping server load');
+      return;
     }
-  } catch (e) {
-    console.log('load-from-server failed:', e);
-  }
+    
+      // بارگذاری از سرور
+      const server = await apiGet(date);
+      console.log('Initial load - Server response:', server);
+      
+      if (server && Array.isArray(server.items)) {
+        console.log('Server response received, rendering items...');
+        if (typeof window.refreshUI === 'function') {
+          // همیشه refreshUI اجرا کن (حتی اگر آیتمی نباشد)
+          window.refreshUI(server.items);
+          console.log('Initial load completed, no auto-sync');
+        }
+      } else {
+        console.log('Server response invalid, showing empty message');
+        if (typeof window.refreshUI === 'function') {
+          window.refreshUI([]);
+        }
+      }
+    } catch (e) {
+      console.log('Initial load failed:', e);
+      console.log('Initial load completed, no auto-sync');
+    }
+  })();
 
   // --- 2) سینک به سرور
   async function syncToServer() {
     try {
-      const items = readLocal();
-      await apiSave({ date, items, deleted: [], postponed: [] });
-      // console.log('synced');
+      console.log('=== SYNC TO SERVER START ===');
+      console.log('Date:', date);
+      
+      // بررسی وجود تابع collect
+      if (typeof window.collect !== 'function') {
+        console.error('window.collect function not found!');
+        return;
+      }
+      
+      // دریافت آیتم‌ها از DOM
+      const items = window.collect();
+      console.log('Items to sync:', items);
+      console.log('Items count:', items.length);
+      
+      // اگر آیتمی وجود ندارد، سینک نکن
+      if (items.length === 0) {
+        console.log('No items to sync, skipping...');
+        return;
+      }
+      
+      const payload = { date, items, deleted: [], postponed: [] };
+      console.log('Full payload:', payload);
+      
+      await apiSave(payload);
+      console.log('Successfully synced to server');
+      console.log('=== SYNC TO SERVER END ===');
     } catch (e) {
-      console.log('sync failed:', e);
+      console.error('Sync failed:', e);
     }
   }
 
   // در اختیار بقیه کدها بگذار که هر جا دیتای چک‌لیست را تغییر می‌دهند، این را صدا بزنند:
   window.timoSyncChecklist = syncToServer;
+  window.collect = collect; // در دسترس قرار دادن تابع collect
+  
+  // استراتژی جدید: فقط سینک دستی
+  // هیچ سینک خودکار نداشته باشیم
+  window.timoSyncChecklist = function() {
+    console.log('Manual sync requested');
+    return syncToServer();
+  };
+  
+  // دکمه بازگشت اضافی حذف شد - دکمه موجود کافی است
+  
+  // تابع تست برای اضافه کردن آیتم
+  window.testAddItem = function(text = 'تست آیتم') {
+    console.log('Adding test item:', text);
+    const li = makeItem({id: crypto.randomUUID(), text: text, done: false});
+    list.insertBefore(li, [...list.children].find(x => x.classList.contains('done')) || null);
+    li.querySelector('.txt').focus();
+    save();
+    refreshProgress();
+    console.log('Test item added, no auto-sync');
+  };
 
-  // اگر دکمه گزارش داری، روی آن هم سینک دستی بذار
-  try {
-    const reportBtn = document.getElementById('reportBtn');
-    if (reportBtn) reportBtn.addEventListener('click', syncToServer);
-  } catch {}
-
-  // --- 3) سینک خودکار دوره‌ای و هنگام خروج از صفحه
-  setInterval(syncToServer, 5000);           // هر ۵ ثانیه
-  window.addEventListener('beforeunload', syncToServer);
+  // هیچ سینک خودکار نداشته باشیم
 })();
 </script>
 

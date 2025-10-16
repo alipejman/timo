@@ -2,6 +2,11 @@ const mongoose = require('mongoose');
 
 // مدل mood برای ذخیره حالات روحی روزانه
 const moodSchema = new mongoose.Schema({
+  user: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
   date: {
     type: String,
     required: true,

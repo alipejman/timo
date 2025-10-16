@@ -2,6 +2,11 @@ const mongoose = require('mongoose');
 
 // مدل چک‌لیست برای ذخیره کارهای روزانه
 const checklistSchema = new mongoose.Schema({
+  user: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
   date: {
     type: String,
     required: true,

@@ -29,7 +29,20 @@ const API_PATTERNS = [
 self.addEventListener('install', (event) => {
   self.skipWaiting(); // نسخه‌ی جدید سریع فعال شود
   event.waitUntil(
-    caches.open(STATIC_CACHE).then(cache => cache.addAll(APP_SHELL))
+    caches.open(STATIC_CACHE).then(cache => {
+      // اضافه کردن فایل‌ها یکی یکی برای جلوگیری از خطا
+      return Promise.allSettled(
+        APP_SHELL.map(url => 
+          fetch(url).then(response => {
+            if (response.ok) {
+              return cache.put(url, response);
+            }
+          }).catch(err => {
+            console.log('Failed to cache:', url, err);
+          })
+        )
+      );
+    })
   );
 });
 

@@ -3,7 +3,17 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
+<meta http-equiv="Pragma" content="no-cache"/>
+<meta http-equiv="Expires" content="0"/>
 <title>Timo Pomodoro Timer</title>
+<script src="js/auth.js"></script>
+<script>
+  // Check authentication
+  if (!window.AuthUtils.requireAuth()) {
+    // Redirect will happen automatically
+  }
+</script>
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/jalali-moment/dist/jalali-moment.browser.js"></script>
@@ -55,6 +65,154 @@
     transform:none !important;
     box-shadow:none !important;
     filter:none !important;
+  }
+
+  /* Mobile Responsive Styles */
+  @media (max-width: 768px) {
+    body {
+      padding: 20px 10px;
+    }
+    
+    #date {
+      font-size: 16px;
+      margin-bottom: 10px;
+    }
+    
+    #modeBox {
+      font-size: 16px;
+      padding: 6px 18px;
+      margin-bottom: 12px;
+    }
+    
+    #timer {
+      font-size: 80px;
+      width: 90%;
+      max-width: 400px;
+      height: 140px;
+      margin-bottom: 20px;
+    }
+    
+    .controls {
+      gap: 10px;
+      flex-wrap: wrap;
+      max-width: 300px;
+    }
+    
+    .controls button {
+      flex: 1;
+      min-width: calc(50% - 5px);
+      max-width: calc(50% - 5px);
+    }
+    
+    button {
+      padding: 8px 16px;
+      font-size: 14px;
+      border-radius: 20px;
+    }
+    
+    #settings-icon {
+      font-size: 20px;
+    }
+    
+    .settings-menu {
+      bottom: 80px;
+      padding: 6px;
+    }
+    
+    .modal-box {
+      width: 95vw;
+      border-radius: 16px;
+    }
+    
+    .modal-body {
+      padding: 12px;
+      max-height: 60vh;
+    }
+    
+    .modal-box input {
+      padding: 8px 10px;
+      font-size: 14px;
+    }
+    
+    .rep-card {
+      padding: 10px;
+      border-radius: 12px;
+    }
+    
+    .rep-title {
+      font-size: 14px;
+    }
+  }
+
+  @media (max-width: 480px) {
+    body {
+      padding: 15px 5px;
+    }
+    
+    #date {
+      font-size: 14px;
+    }
+    
+    #modeBox {
+      font-size: 14px;
+      padding: 5px 15px;
+    }
+    
+    #timer {
+      font-size: 60px;
+      width: 95%;
+      height: 120px;
+      margin-bottom: 15px;
+    }
+    
+    .controls {
+      gap: 8px;
+      max-width: 280px;
+    }
+    
+    .controls button {
+      flex: 1;
+      min-width: calc(50% - 4px);
+      max-width: calc(50% - 4px);
+    }
+    
+    button {
+      padding: 6px 12px;
+      font-size: 13px;
+      border-radius: 16px;
+    }
+    
+    #settings-icon {
+      font-size: 18px;
+    }
+    
+    .settings-menu {
+      bottom: 70px;
+      padding: 4px;
+    }
+    
+    .modal-box {
+      width: 98vw;
+      border-radius: 12px;
+    }
+    
+    .modal-body {
+      padding: 10px;
+      max-height: 50vh;
+    }
+    
+    .modal-box input {
+      padding: 6px 8px;
+      font-size: 13px;
+    }
+    
+    .rep-card {
+      padding: 8px;
+    }
+    
+    .rep-title {
+      font-size: 13px;
+    }
   }
 </style>
 
@@ -154,26 +312,59 @@
 
   async function apiGetTodayTotal() {
     const d = todayKey();
-    const r = await fetch(`/api/timer?date=${encodeURIComponent(d)}`).then(r=>r.json());
+    const headers = window.AuthUtils.getAuthHeaders();
+    if (!headers) {
+      console.error('No token available for apiGetTodayTotal');
+      return 0;
+    }
+    const r = await fetch(`/api/timer?date=${encodeURIComponent(d)}&t=${Date.now()}`, {
+      headers: headers
+    }).then(r=>r.json());
     return r.totalSeconds || 0;
   }
   async function apiAddSeconds(seconds, session) {
+    console.log('=== API ADD SECONDS START ===');
+    console.log('Raw parameters:', { seconds, session });
+    console.log('Type of seconds:', typeof seconds);
+    console.log('Value of seconds:', seconds);
+    
     const d = todayKey();
     // همیشه sessionType را 'work' تنظیم کن
     const sessionType = 'work';
+    console.log('SessionType set to:', sessionType);
+    console.log('Date set to:', d);
     console.log('apiAddSeconds called with:', { seconds, session, sessionType });
-    
+
+    // بررسی که seconds معتبر باشد
+    if (!seconds || seconds <= 0) {
+      console.log('❌ No valid seconds to save, skipping API call');
+      console.log('Seconds value:', seconds);
+      console.log('Seconds type:', typeof seconds);
+      return;
+    }
+
     try {
-      // ارسال ساده بدون object session - فقط seconds و sessionType
-      // FINAL VERSION - NO SESSION OBJECT
+      const headers = window.AuthUtils.getAuthHeaders();
+      if (!headers) {
+        console.error('❌ No token available for apiAddSeconds');
+        throw new Error('No authentication token');
+      }
+      
+      const requestData = { 
+        date: d, 
+        seconds: parseInt(seconds), // اطمینان از integer بودن
+        sessionType: sessionType 
+      };
+      
+      console.log('=== SENDING REQUEST ===');
+      console.log('Request data:', requestData);
+      console.log('Request data JSON:', JSON.stringify(requestData));
+      console.log('Headers:', headers);
+      
       const response = await fetch('/api/timer/addSeconds', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          date: d, 
-          seconds: seconds, 
-          sessionType: sessionType 
-        })
+        headers: headers,
+        body: JSON.stringify(requestData)
       });
       
       if (!response.ok) {
@@ -191,16 +382,93 @@
     }
   }
   async function apiRange(fromYMD, toYMD) {
-    const r = await fetch(`/api/timer/range?from=${encodeURIComponent(fromYMD)}&to=${encodeURIComponent(toYMD)}`).then(r=>r.json());
-    return Array.isArray(r) ? r : [];
+    console.log('apiRange called with:', { fromYMD, toYMD });
+    const headers = window.AuthUtils.getAuthHeaders();
+    if (!headers) {
+      console.error('No token available for apiRange');
+      return [];
+    }
+    
+    try {
+      const response = await fetch(`/api/timer/range?from=${encodeURIComponent(fromYMD)}&to=${encodeURIComponent(toYMD)}&t=${Date.now()}`, {
+        headers: headers
+      });
+      
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      console.log('apiRange response:', data);
+      
+      // بررسی ساختار پاسخ
+      if (data.timers && Array.isArray(data.timers)) {
+        console.log('Returning timers array:', data.timers);
+        return data.timers;
+      } else if (Array.isArray(data)) {
+        console.log('Returning data array:', data);
+        return data;
+      } else {
+        console.log('No valid data structure, returning empty array');
+        return [];
+      }
+    } catch (error) {
+      console.error('apiRange error:', error);
+      return [];
+    }
   }
 
   // Timer
   let studyTime = 25*60, breakTime=5*60, remaining=studyTime, interval=null, isRunning=false, isStudy=true, sessionStart=null, accSeconds=0;
+  let audioEnabled = false;
+
+  // فعال کردن صدا در موبایل با اولین تعامل کاربر
+  function enableAudio() {
+    if (!audioEnabled) {
+      audioEnabled = true;
+      // ایجاد یک AudioContext خاموش برای فعال کردن صدا
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      if (ctx.state === 'suspended') {
+        ctx.resume();
+      }
+    }
+  }
 
   function setBg(isStudy){ document.body.style.background = isStudy ? 'linear-gradient(135deg, #f6d365 0%, #fda085 100%)' : 'linear-gradient(135deg, #a1c4fd 0%, #c2e9fb 100%)'; }
   function updateTimer(){ const m=Math.floor(remaining/60), s=remaining%60; document.getElementById('timer').textContent = `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`; }
-  function beep(freq=800, dur=300){ const ctx=new (window.AudioContext||window.webkitAudioContext)(); const o=ctx.createOscillator(), g=ctx.createGain(); o.connect(g); g.connect(ctx.destination); o.type='sine'; o.frequency.value=freq; g.gain.value=0.1; o.start(); o.stop(ctx.currentTime+dur/1000); }
+  function beep(freq=800, dur=300){
+    try {
+      // فعال کردن AudioContext در موبایل
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      
+      // اگر AudioContext suspended است، آن را resume کن
+      if (ctx.state === 'suspended') {
+        ctx.resume().then(() => {
+          playBeep(ctx, freq, dur);
+        });
+      } else {
+        playBeep(ctx, freq, dur);
+      }
+    } catch (e) {
+      console.log('Audio not supported:', e);
+      // fallback: vibration در موبایل
+      if (navigator.vibrate) {
+        navigator.vibrate([100, 50, 100]);
+      }
+    }
+  }
+  
+  function playBeep(ctx, freq, dur) {
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.connect(g);
+    g.connect(ctx.destination);
+    o.type = 'sine';
+    o.frequency.value = freq;
+    g.gain.value = 0.1;
+    o.start();
+    o.stop(ctx.currentTime + dur/1000);
+  }
 
   function startTimer(){
     if(isRunning) return; isRunning=true;
@@ -216,25 +484,30 @@
         if(isStudy){
           // پایان فاز مطالعه ← ذخیره در سرور
           const endISO = new Date().toISOString();
-          apiAddSeconds(studyTime, null).then(updateTodayLine).catch(err => console.error('Error saving timer:', err));
+          apiAddSeconds(accSeconds, null).then(updateTodayLine).catch(err => console.error('Error saving timer:', err));
           sessionStart = null; accSeconds = 0;
 
           isStudy=false; remaining=breakTime; document.getElementById('modeBox').textContent='زمان استراحت ☕'; setBg(false); toast('مطالعه تمام شد، استراحت کن ☕');
-          startTimer();
+          updateTimer(); // فقط نمایش زمان، شروع نکن
         } else {
           isStudy=true; remaining=studyTime; document.getElementById('modeBox').textContent='زمان مطالعه 📚'; setBg(true); toast('استراحت تمام شد، برگرد به مطالعه 📚');
-          startTimer();
+          updateTimer(); // فقط نمایش زمان، شروع نکن
         }
       }
     },1000);
   }
-  document.getElementById('start').onclick = startTimer;
+  document.getElementById('start').onclick = () => {
+    enableAudio();
+    startTimer();
+  };
   document.getElementById('pause').onclick = ()=>{
+    enableAudio();
     clearInterval(interval); if(!isRunning) return; isRunning=false;
     if(isStudy && accSeconds>0){ const endISO=new Date().toISOString(); apiAddSeconds(accSeconds, null).then(updateTodayLine).catch(err => console.error('Error saving timer:', err)); }
     sessionStart=null; accSeconds=0;
   };
   document.getElementById('reset').onclick = ()=>{
+    enableAudio();
     clearInterval(interval); isRunning=false;
     if(isStudy && accSeconds>0){ const endISO=new Date().toISOString(); apiAddSeconds(accSeconds, null).then(updateTodayLine).catch(err => console.error('Error saving timer:', err)); }
     sessionStart=null; accSeconds=0;
@@ -242,6 +515,7 @@
     isStudy=true; remaining=studyTime; document.getElementById('modeBox').textContent='زمان مطالعه 📚'; setBg(true); updateTimer();
   };
   document.getElementById('end').onclick = ()=>{
+    enableAudio();
     clearInterval(interval); if(isStudy && accSeconds>0){ const endISO=new Date().toISOString(); apiAddSeconds(accSeconds, null).then(updateTodayLine).catch(err => console.error('Error saving timer:', err)); }
     isRunning=false; sessionStart=null; accSeconds=0;
     remaining=studyTime; updateTimer(); toast('تایم مطالعه ثبت شد ✅');
@@ -295,34 +569,280 @@
     document.getElementById('errBox').style.display='none';
     const v=validateRange(from,to); if(!v){ showErr(ERR_TXT); document.getElementById('cards').style.display='none'; document.getElementById('dailyBox').style.display='none'; return; }
 
-    const docs = await apiRange(v.mFrom.format('jYYYY/jMM/jDD'), v.mTo.format('jYYYY/jMM/jDD'));
-    const sumSecs = docs.reduce((s,d)=>s+(d.totalSeconds||0), 0);
-    const daysWithStudy = docs.filter(d => (d.totalSeconds||0)>0).length;
-    document.getElementById('sumMinutes').textContent = `${Math.floor(sumSecs/60)} دقیقه`;
-    document.getElementById('avgMinutes').textContent = daysWithStudy ? `${Math.round(sumSecs/60/daysWithStudy)} دقیقه` : '۰ دقیقه';
+    // تبدیل فرمت تاریخ
+    const convertDate = (dateStr) => {
+      if (!dateStr) return dateStr;
+      const parts = dateStr.split('/');
+      if (parts.length === 3) {
+        return `${parts[2]}/${parts[1]}/${parts[0]}`;
+      }
+      return dateStr;
+    };
+    
+    const convertedFrom = convertDate(from);
+    const convertedTo = convertDate(to);
+
+    const docs = await apiRange(convertedFrom, convertedTo);
+    const sumSecs = docs.reduce((s,d)=>s+(d.duration||0), 0);
+    const daysWithStudy = docs.filter(d => (d.duration||0)>0).length;
+    
+    // فرمت زمان
+    const formatTime = (seconds) => {
+      if (!seconds || seconds === 0) return '00:00';
+      const totalSeconds = Math.round(seconds);
+      const h = Math.floor(totalSeconds / 3600);
+      const m = Math.floor((totalSeconds % 3600) / 60);
+      const sec = totalSeconds % 60;
+      
+      if (h === 0) {
+        return `${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
+      } else {
+        return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
+      }
+    };
+    
+    const totalTime = formatTime(sumSecs);
+    const averageSeconds = daysWithStudy > 0 ? sumSecs / daysWithStudy : 0;
+    
+    // اگر میانگین کمتر از 1 دقیقه است، به صورت ثانیه نمایش بده
+    let averageDisplay;
+    if (averageSeconds < 60) {
+      averageDisplay = `${Math.round(averageSeconds)} ثانیه`;
+    } else {
+      averageDisplay = formatTime(averageSeconds);
+    }
+    
+    document.getElementById('sumMinutes').textContent = `${totalTime} مطالعه`;
+    document.getElementById('avgMinutes').textContent = daysWithStudy ? `${averageDisplay} میانگین` : '۰ دقیقه';
     document.getElementById('cards').style.display='block';
     document.getElementById('dailyBox').style.display='none';
   };
 
   document.getElementById('btnDaily').onclick=async()=>{
+    console.log('btnDaily clicked');
     const from=document.getElementById('fromDate').value.trim(), to=document.getElementById('toDate').value.trim();
+    console.log('Date inputs for daily:', { from, to });
     document.getElementById('errBox').style.display='none';
     const v=validateRange(from,to); if(!v){ showErr(ERR_TXT); document.getElementById('dailyBox').style.display='none'; document.getElementById('cards').style.display='none'; return; }
 
-    const docs = await apiRange(v.mFrom.format('jYYYY/jMM/jDD'), v.mTo.format('jYYYY/jMM/jDD'));
-    const byDate = Object.fromEntries(docs.map(d => [d.date, d.totalSeconds||0]));
+    // تبدیل فرمت تاریخ
+    const convertDate = (dateStr) => {
+      if (!dateStr) return dateStr;
+      const parts = dateStr.split('/');
+      if (parts.length === 3) {
+        return `${parts[2]}/${parts[1]}/${parts[0]}`;
+      }
+      return dateStr;
+    };
+    
+    const convertedFrom = convertDate(from);
+    const convertedTo = convertDate(to);
+    console.log('Converted dates for daily:', { from: convertedFrom, to: convertedTo });
+
+    const docs = await apiRange(convertedFrom, convertedTo);
+    console.log('Daily docs received:', docs);
+    console.log('Number of docs:', docs.length);
+    
+    // گروه‌بندی بر اساس تاریخ و محاسبه مجموع
+    const byDate = {};
+    docs.forEach(timer => {
+      const date = timer.date;
+      const duration = timer.duration || 0;
+      console.log(`Processing timer: date=${date}, duration=${duration}`);
+      
+      if (!byDate[date]) {
+        byDate[date] = 0;
+      }
+      byDate[date] += duration;
+    });
+    
+    console.log('Grouped by date:', byDate);
+    console.log('Number of dates with data:', Object.keys(byDate).length);
 
     const list=document.getElementById('dailyList'); list.innerHTML='';
     const c=v.mFrom.clone();
     while(c.isSameOrBefore(v.mTo)){
-      const k=c.format('jYYYY/jMM/jDD'); const mins=Math.floor((byDate[k]||0)/60);
+      const k=c.format('jYYYY/jMM/jDD'); 
+      const totalSeconds = byDate[k] || 0;
+      
+      // فرمت زمان بهتر
+      let timeDisplay;
+      if (totalSeconds < 60) {
+        timeDisplay = `${totalSeconds} ثانیه`;
+      } else {
+        const mins = Math.floor(totalSeconds / 60);
+        const secs = totalSeconds % 60;
+        if (secs === 0) {
+          timeDisplay = `${mins} دقیقه`;
+        } else {
+          timeDisplay = `${mins}:${String(secs).padStart(2,'0')} دقیقه`;
+        }
+      }
+      
+      console.log(`Date ${k}: ${totalSeconds} seconds = ${timeDisplay}`);
+      
       const row=document.createElement('div'); row.className='d-flex justify-content-between border-bottom py-2';
-      row.innerHTML=`<span>${c.locale('fa').format('dddd jD jMMMM')}</span><strong>${mins} دقیقه</strong>`;
+      row.innerHTML=`<span>${c.locale('fa').format('dddd jD jMMMM')}</span><strong>${timeDisplay}</strong>`;
       list.appendChild(row); c.add(1,'day');
     }
     document.getElementById('cards').style.display='none';
     document.getElementById('dailyBox').style.display='block';
   };
+
+  // گزارش‌گیری - اضافه شده
+  function setupReportListener() {
+    console.log('Setting up report listener...');
+    const btnRange = document.getElementById('btnRange');
+    console.log('btnRange element:', btnRange);
+    if (btnRange) {
+      console.log('Adding event listener to btnRange');
+      btnRange.addEventListener('click', async function() {
+    console.log('Report button clicked!');
+    
+    const start = document.getElementById('fromDate').value;
+    const end = document.getElementById('toDate').value;
+    
+    console.log('Date inputs:', { start, end });
+    
+    if(!start || !end) {
+      alert('لطفاً تاریخ شروع و پایان را انتخاب کنید');
+      return;
+    }
+    
+    // تبدیل فرمت تاریخ از DD/MM/YYYY به YYYY/MM/DD
+    const convertDate = (dateStr) => {
+      if (!dateStr) return dateStr;
+      const parts = dateStr.split('/');
+      if (parts.length === 3) {
+        // تبدیل از DD/MM/YYYY به YYYY/MM/DD
+        return `${parts[2]}/${parts[1]}/${parts[0]}`;
+      }
+      return dateStr;
+    };
+    
+    const convertedStart = convertDate(start);
+    const convertedEnd = convertDate(end);
+    
+    console.log('Converted dates:', { from: convertedStart, to: convertedEnd });
+    console.log('Report request:', { from: convertedStart, to: convertedEnd });
+    
+    try {
+      const headers = window.AuthUtils.getAuthHeaders();
+      if (!headers) {
+        throw new Error('احراز هویت ناموفق');
+      }
+      
+      console.log('Fetching timer range data...', { from: convertedStart, to: convertedEnd });
+
+      const response = await fetch(`/api/timer/range?from=${encodeURIComponent(convertedStart)}&to=${encodeURIComponent(convertedEnd)}&t=${Date.now()}`, {
+        headers: headers
+      });
+      
+      if (!response.ok) {
+        throw new Error(`خطای سرور: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      console.log('Timer range response:', data);
+      
+      const formatTime = (minutes) => {
+        console.log('Formatting time - input minutes:', minutes);
+        
+        // بررسی اگر minutes صفر یا undefined باشد
+        if (!minutes || minutes === 0) {
+          console.log('No time to format, returning 00:00');
+          return '00:00';
+        }
+        
+        // تبدیل دقیقه به ثانیه (با دقت کامل)
+        const totalSeconds = Math.round(minutes * 60);
+        console.log('Total seconds:', totalSeconds);
+        
+        const h = Math.floor(totalSeconds / 3600);
+        const m = Math.floor((totalSeconds % 3600) / 60);
+        const sec = totalSeconds % 60;
+        
+        console.log('Calculated - Hours:', h, 'Minutes:', m, 'Seconds:', sec);
+        
+        if (h === 0) {
+          const result = `${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
+          console.log('Result (MM:SS):', result);
+          return result;
+        } else {
+          const result = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
+          console.log('Result (HH:MM:SS):', result);
+          return result;
+        }
+      };
+      
+      console.log('Raw data from API:', data);
+      console.log('totalWork value:', data.totalWork);
+      console.log('totalBreak value:', data.totalBreak);
+      console.log('sessions value:', data.sessions);
+      
+      const workTime = formatTime(data.totalWork || 0);
+      const breakTime = formatTime(data.totalBreak || 0);
+      const sessions = data.sessions || 0;
+      
+      console.log('Formatted workTime:', workTime);
+      console.log('Formatted breakTime:', breakTime);
+      console.log('Sessions count:', sessions);
+      
+      // محاسبه میانگین روزهای دارای مطالعه
+      const totalWorkMinutes = data.totalWork || 0;
+      const daysWithStudy = sessions; // تعداد جلسات = تعداد روزهای دارای مطالعه
+      const averageMinutes = daysWithStudy > 0 ? totalWorkMinutes / daysWithStudy : 0;
+      
+      // اگر میانگین کمتر از 1 دقیقه است، به صورت دقیقه نمایش بده
+      let averageDisplay;
+      if (averageMinutes < 1) {
+        const averageSeconds = Math.round(averageMinutes * 60);
+        averageDisplay = `${averageSeconds} ثانیه`;
+      } else {
+        averageDisplay = formatTime(averageMinutes);
+      }
+      
+      console.log('Average calculation:', {
+        totalWorkMinutes,
+        daysWithStudy,
+        averageMinutes,
+        averageDisplay
+      });
+      
+      // بررسی وجود عناصر DOM
+      const sumMinutesEl = document.getElementById('sumMinutes');
+      const avgMinutesEl = document.getElementById('avgMinutes');
+      const cardsEl = document.getElementById('cards');
+      const errBoxEl = document.getElementById('errBox');
+      
+      console.log('DOM elements found:', {
+        sumMinutes: !!sumMinutesEl,
+        avgMinutes: !!avgMinutesEl,
+        cards: !!cardsEl,
+        errBox: !!errBoxEl
+      });
+      
+      if (sumMinutesEl) sumMinutesEl.textContent = `${workTime} مطالعه`;
+      if (avgMinutesEl) avgMinutesEl.textContent = `${averageDisplay} میانگین`;
+      if (cardsEl) cardsEl.style.display = 'block';
+      if (errBoxEl) errBoxEl.style.display = 'none';
+      
+      console.log('Report displayed successfully:', { workTime, breakTime, sessions });
+      
+    } catch (error) {
+      console.error('Report error:', error);
+      document.getElementById('errBox').style.display = 'block';
+      document.getElementById('errBox').textContent = `خطا: ${error.message}`;
+    }
+      });
+    } else {
+      console.error('btnRange element not found!');
+    }
+  }
+  
+  // اجرای فوری و با تاخیر
+  setupReportListener();
+  setTimeout(setupReportListener, 1000);
 </script>
 
 <script>

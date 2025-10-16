@@ -4,12 +4,16 @@ const Task = require('../models/Task');
 const Timer = require('../models/Timer');
 const Checklist = require('../models/Checklist');
 const Mood = require('../models/Mood');
+const { authenticateToken } = require('../middleware/auth');
+
+// Apply authentication to all routes
+router.use(authenticateToken);
 
 // Routes برای Tasks
 // دریافت همه تسک‌ها
 router.get('/tasks', async (req, res) => {
   try {
-    const tasks = await Task.find().sort({ createdAt: -1 });
+    const tasks = await Task.find({ user: req.user._id }).sort({ createdAt: -1 });
     res.json(tasks);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -19,7 +23,10 @@ router.get('/tasks', async (req, res) => {
 // ایجاد تسک جدید
 router.post('/tasks', async (req, res) => {
   try {
-    const task = new Task(req.body);
+    const task = new Task({
+      ...req.body,
+      user: req.user._id
+    });
     await task.save();
     res.status(201).json(task);
   } catch (error) {
@@ -30,7 +37,11 @@ router.post('/tasks', async (req, res) => {
 // به‌روزرسانی تسک
 router.put('/tasks/:id', async (req, res) => {
   try {
-    const task = await Task.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    const task = await Task.findOneAndUpdate(
+      { _id: req.params.id, user: req.user._id }, 
+      req.body, 
+      { new: true }
+    );
     if (!task) {
       return res.status(404).json({ error: 'تسک پیدا نشد' });
     }
@@ -43,7 +54,7 @@ router.put('/tasks/:id', async (req, res) => {
 // حذف تسک
 router.delete('/tasks/:id', async (req, res) => {
   try {
-    const task = await Task.findByIdAndDelete(req.params.id);
+    const task = await Task.findOneAndDelete({ _id: req.params.id, user: req.user._id });
     if (!task) {
       return res.status(404).json({ error: 'تسک پیدا نشد' });
     }
@@ -84,11 +95,12 @@ router.get('/checklist', async (req, res) => {
       return res.status(400).json({ error: 'تاریخ الزامی است' });
     }
     
-    let checklist = await Checklist.findOne({ date });
+    let checklist = await Checklist.findOne({ user: req.user._id, date });
     
     // اگر چک‌لیست وجود نداشت، یک چک‌لیست خالی ایجاد کن
     if (!checklist) {
       checklist = new Checklist({ 
+        user: req.user._id,
         date, 
         items: [] 
       });
@@ -111,10 +123,10 @@ router.post('/checklist/save', async (req, res) => {
     }
     
     // پیدا کردن یا ایجاد چک‌لیست
-    let checklist = await Checklist.findOne({ date });
+    let checklist = await Checklist.findOne({ user: req.user._id, date });
     
     if (!checklist) {
-      checklist = new Checklist({ date, items: [] });
+      checklist = new Checklist({ user: req.user._id, date, items: [] });
     }
     
     // تبدیل آیتم‌ها از فرمت JavaScript به فرمت دیتابیس
@@ -187,11 +199,12 @@ router.get('/mood', async (req, res) => {
       return res.status(400).json({ error: 'تاریخ الزامی است' });
     }
     
-    let mood = await Mood.findOne({ date });
+    let mood = await Mood.findOne({ user: req.user._id, date });
     
     // اگر mood وجود نداشت، یک mood خالی ایجاد کن
     if (!mood) {
       mood = new Mood({ 
+        user: req.user._id,
         date, 
         mood: 'neutral',
         energy: 5,
@@ -240,6 +253,7 @@ router.get('/mood/range', async (req, res) => {
     }
     
     const moods = await Mood.find({
+      user: req.user._id,
       date: { $gte: from, $lte: to }
     }).sort({ date: 1 });
     
@@ -291,10 +305,10 @@ router.post('/mood/save', async (req, res) => {
     console.log('moodString:', moodString);
     
     // پیدا کردن یا ایجاد mood
-    let moodRecord = await Mood.findOne({ date });
+    let moodRecord = await Mood.findOne({ user: req.user._id, date });
     
     if (!moodRecord) {
-      moodRecord = new Mood({ date });
+      moodRecord = new Mood({ user: req.user._id, date });
     }
     
     // به‌روزرسانی فیلدها - همیشه mood را تنظیم کن
@@ -345,6 +359,7 @@ router.get('/timer', async (req, res) => {
     
     // جستجو بر اساس تاریخ شمسی (string)
     const timers = await Timer.find({
+      user: req.user._id,
       date: date
     }).sort({ completedAt: 1 });
     
@@ -384,19 +399,47 @@ router.get('/timer/range', async (req, res) => {
       return res.status(400).json({ error: 'تاریخ شروع و پایان الزامی است' });
     }
     
-    const startDate = new Date(from);
-    const endDate = new Date(to);
-    endDate.setDate(endDate.getDate() + 1);
+    console.log('Timer range request:', { from, to, user: req.user._id });
     
+    // جستجو بر اساس تاریخ شمسی (string) و کاربر
     const timers = await Timer.find({
-      completedAt: {
-        $gte: startDate,
-        $lt: endDate
+      user: req.user._id, // اضافه کردن فیلتر کاربر
+      date: {
+        $gte: from,
+        $lte: to
       }
     }).sort({ completedAt: 1 });
     
-    res.json(timers);
+    console.log('Found timers:', timers.length);
+    
+    // محاسبه آمار
+    const stats = {
+      totalWork: 0,
+      totalBreak: 0,
+      totalLongBreak: 0,
+      totalSeconds: 0,
+      sessions: timers.length,
+      timers: timers
+    };
+    
+    timers.forEach(timer => {
+      const duration = timer.duration / 60; // تبدیل به دقیقه
+      if (timer.sessionType === 'work') {
+        stats.totalWork += duration;
+        stats.totalSeconds += timer.duration;
+      } else if (timer.sessionType === 'break') {
+        stats.totalBreak += duration;
+        stats.totalSeconds += timer.duration;
+      } else if (timer.sessionType === 'longBreak') {
+        stats.totalLongBreak += duration;
+        stats.totalSeconds += timer.duration;
+      }
+    });
+    
+    console.log('Timer range stats:', stats);
+    res.json(stats);
   } catch (error) {
+    console.error('Timer range error:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -428,12 +471,22 @@ router.post('/timer/save', async (req, res) => {
 // اضافه کردن ثانیه به تایمر (برای تایمر زنده)
 router.post('/timer/addSeconds', async (req, res) => {
   try {
+    console.log('=== ADD SECONDS API START ===');
+    console.log('Raw request body:', req.body);
+    console.log('Request headers:', req.headers);
+    
     const { sessionType, seconds, notes, tags, date } = req.body;
     
-    console.log('addSeconds request:', { sessionType, seconds, notes, tags, date });
+    console.log('Extracted values:', { sessionType, seconds, notes, tags, date });
+    console.log('Type of sessionType:', typeof sessionType);
+    console.log('Type of seconds:', typeof seconds);
+    console.log('Value of sessionType:', sessionType);
+    console.log('Value of seconds:', seconds);
     
     // بررسی پارامترهای الزامی
     if (!sessionType || !seconds) {
+      console.log('❌ Missing required parameters');
+      console.log('sessionType:', sessionType, 'seconds:', seconds);
       return res.status(400).json({ error: 'نوع جلسه و ثانیه الزامی است' });
     }
     
@@ -448,10 +501,15 @@ router.post('/timer/addSeconds', async (req, res) => {
       return res.status(400).json({ error: 'مقدار ثانیه باید عدد مثبت باشد' });
     }
     
+    // تبدیل تاریخ شمسی به میلادی برای ذخیره در دیتابیس
+    const jalaliDate = date || moment().format('jYYYY/jMM/jDD');
+    console.log('Using date:', jalaliDate);
+    
     const timer = new Timer({
+      user: req.user._id,
       sessionType,
       duration,
-      date: date || new Date().toISOString().split('T')[0], // تاریخ شمسی یا امروز
+      date: jalaliDate, // تاریخ شمسی
       notes,
       tags,
       completedAt: new Date()

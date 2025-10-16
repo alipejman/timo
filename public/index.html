@@ -3,7 +3,45 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate, max-age=0">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<meta name="cache-control" content="no-cache">
+<meta name="expires" content="0">
+<meta name="pragma" content="no-cache">
 <title>Timo — Dashboard</title>
+<script src="js/auth.js?v=20251016030000"></script>
+<script>
+  // Force cache busting for all scripts
+  const timestamp = Date.now();
+  console.log('Cache busting timestamp:', timestamp);
+</script>
+<script>
+  // Check authentication
+  (function() {
+    console.log('Index page loading...');
+    console.log('Current localStorage contents:', {
+      token: localStorage.getItem('token'),
+      user: localStorage.getItem('user'),
+      allKeys: Object.keys(localStorage)
+    });
+    
+    // Check if AuthUtils is available
+    if (typeof window.AuthUtils === 'undefined') {
+      console.error('AuthUtils not loaded! Check if js/auth.js is accessible');
+      window.location.href = 'login.html';
+    } else {
+      console.log('AuthUtils loaded successfully');
+      
+      if (!window.AuthUtils.requireAuth()) {
+        console.log('Authentication failed, redirecting to login...');
+        // Redirect will happen automatically
+      } else {
+        console.log('Authentication successful, staying on index page');
+      }
+    }
+  })();
+</script>
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/jalali-moment/dist/jalali-moment.browser.js"></script>
@@ -50,6 +88,107 @@
     display:flex; align-items:center; justify-content:space-between; gap:8px;
   }
   .mini-footer strong{ font-weight:900; color:#111; }
+
+  /* Mobile Responsive Styles */
+  @media (max-width: 768px) {
+    body {
+      padding: 20px 10px;
+      min-height: 100vh;
+    }
+    
+    div[style*="display: flex"] {
+      padding-top: 30px !important;
+    }
+    
+    h1 {
+      font-size: 28px;
+      margin-bottom: 8px;
+    }
+    
+    .subtitle {
+      font-size: 16px;
+      margin-bottom: 20px;
+    }
+    
+    .dashboard {
+      gap: 15px;
+      flex-direction: column;
+      align-items: center;
+      width: 100%;
+      max-width: 400px;
+    }
+    
+    .card-link {
+      width: 100%;
+      max-width: 350px;
+    }
+    
+    .card {
+      width: 100%;
+      max-width: 350px;
+      height: 180px;
+      padding: 16px 12px 40px;
+    }
+    
+    .card img {
+      width: 60px;
+      height: 60px;
+    }
+    
+    .card p {
+      font-size: 16px;
+    }
+    
+    .mini-footer {
+      font-size: 12px;
+      padding: 6px 8px;
+    }
+    
+    #logoutBtn {
+      font-size: 12px;
+      padding: 6px 12px;
+    }
+  }
+
+  @media (max-width: 480px) {
+    div[style*="display: flex"] {
+      padding-top: 25px !important;
+    }
+    
+    h1 {
+      font-size: 24px;
+    }
+    
+    .subtitle {
+      font-size: 14px;
+    }
+    
+    .dashboard {
+      width: 100%;
+      max-width: 350px;
+    }
+    
+    .card-link {
+      width: 100%;
+      max-width: 300px;
+    }
+    
+    .card {
+      width: 100%;
+      max-width: 300px;
+      height: 160px;
+      padding: 12px 8px 35px;
+    }
+    
+    .card img {
+      width: 50px;
+      height: 50px;
+    }
+    
+    .card p {
+      font-size: 14px;
+    }
+  }
 </style>
 
 <link rel="manifest" href="manifest.json">
@@ -61,7 +200,11 @@
 </head>
 <body>
 
-<h1>Timo ⏰</h1>
+<div style="display: flex; justify-content: space-between; align-items: center; width: 100%; max-width: 600px; margin-bottom: 20px; padding-top: 20px;">
+  <div></div>
+  <h1 style="margin: 0;">Timo ⏰</h1>
+  <button id="logoutBtn" style="background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3); color: white; padding: 8px 16px; border-radius: 20px; cursor: pointer; font-size: 14px;">خروج</button>
+</div>
 <div class="subtitle">دستیاری برای رسیدن به هدف‌های تو 🎯</div>
 
 <div class="dashboard">
@@ -118,27 +261,86 @@
   // تایمر: از API دریافت کن
   (async function fillTimer(){
     const ymd = todayKey();
+    console.log('=== FILL TIMER START ===');
+    console.log('Date:', ymd);
+    
     try{
-      const response = await fetch(`/api/timer?date=${encodeURIComponent(ymd)}`);
+      const headers = window.AuthUtils.getAuthHeaders();
+      if (!headers) {
+        console.error('No token available for fillTimer');
+        document.getElementById('timer-today').textContent = '00:00';
+        return;
+      }
+      
+      console.log('Fetching timer data...');
+      const response = await fetch(`/api/timer?date=${encodeURIComponent(ymd)}&t=${Date.now()}`, {
+        headers: headers
+      });
+      
+      console.log('Timer API response status:', response.status);
+      
       if(!response.ok) throw new Error('API error');
       const data = await response.json();
       
+      console.log('Timer API response data:', data);
+      
       const totalWork = data.totalWork || 0;
-      const fmt = s => {
-        const h = Math.floor(s/60), m = Math.floor(s%60);
-        return (h>0? String(h).padStart(2,'0'):'00') + ':' + String(m).padStart(2,'0');
+      console.log('Total work time (minutes):', totalWork);
+      console.log('About to call formatTime function with:', totalWork);
+      
+      // تابع فرمت زمان - تعریف شده در scope بالاتر
+      const formatTime = (minutes) => {
+        console.log('Formatting time - input minutes:', minutes);
+        
+        // تبدیل دقیقه به ثانیه
+        const totalSeconds = Math.floor(minutes * 60);
+        console.log('Total seconds:', totalSeconds);
+        
+        const h = Math.floor(totalSeconds / 3600);
+        const m = Math.floor((totalSeconds % 3600) / 60);
+        const sec = totalSeconds % 60;
+        
+        console.log('Calculated - Hours:', h, 'Minutes:', m, 'Seconds:', sec);
+        
+        // اگر کمتر از 1 ساعت است، فقط دقیقه:ثانیه نمایش بده
+        if (h === 0) {
+          const result = String(m).padStart(2,'0') + ':' + String(sec).padStart(2,'0');
+          console.log('Result (MM:SS):', result);
+          return result;
+        } else {
+          const result = String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0') + ':' + String(sec).padStart(2,'0');
+          console.log('Result (HH:MM:SS):', result);
+          return result;
+        }
       };
-      document.getElementById('timer-today').textContent = fmt(totalWork);
+      
+      console.log('Calling formatTime now...');
+      const formattedTime = formatTime(totalWork);
+      console.log('Formatted time:', formattedTime);
+      
+      document.getElementById('timer-today').textContent = formattedTime;
+      console.log('Timer display updated successfully');
     }catch(e){
+      console.error('Timer API error:', e);
       document.getElementById('timer-today').textContent = '00:00';
     }
+    
+    console.log('=== FILL TIMER END ===');
   })();
 
   // مود: از API دریافت کن
   (async function fillMood(){
     const ymd = todayKey();
     try{
-      const response = await fetch(`/api/mood?date=${encodeURIComponent(ymd)}`);
+      const headers = window.AuthUtils.getAuthHeaders();
+      if (!headers) {
+        console.error('No token available for fillMood');
+        document.getElementById('mood-today').textContent = 'ثبت نشده';
+        return;
+      }
+      const response = await fetch(`/api/mood?date=${encodeURIComponent(ymd)}&t=${Date.now()}`, {
+        headers: headers
+      });
       if(!response.ok) throw new Error('API error');
       const m = await response.json();
       
@@ -185,7 +387,15 @@
   (async function fillChecklist(){
     const ymd = todayKey();
     try{
-      const response = await fetch(`/api/checklist?date=${encodeURIComponent(ymd)}`);
+      const headers = window.AuthUtils.getAuthHeaders();
+      if (!headers) {
+        console.error('No token available for fillChecklist');
+        document.getElementById('todo-left').textContent = '0';
+        return;
+      }
+      const response = await fetch(`/api/checklist?date=${encodeURIComponent(ymd)}&t=${Date.now()}`, {
+        headers: headers
+      });
       if(!response.ok) throw new Error('API error');
       const data = await response.json();
       
@@ -196,6 +406,11 @@
       document.getElementById('todo-left').textContent = '0';
     }
   })();
+
+  // Logout functionality
+  document.getElementById('logoutBtn').addEventListener('click', () => {
+    window.AuthUtils.logout();
+  });
 </script>
 
 <script>
