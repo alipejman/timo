@@ -41,7 +41,7 @@ Create a `.env` file in the root directory:
 
 ```env
 # MongoDB Atlas Configuration
-MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/timo?retryWrites=true&w=majority
+MONGODB_URI=YOUR_MONGODB_URI
 
 # Server Configuration
 PORT=3000
