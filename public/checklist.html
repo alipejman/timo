@@ -7,7 +7,7 @@
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
 <title>Timo Checklist</title>
-<script src="js/auth.js?v=20251016190000"></script>
+<script src="js/auth.js?v=20251016191000"></script>
 <script>
   // Check authentication
   if (!window.AuthUtils.requireAuth()) {
@@ -376,7 +376,24 @@
   }
   const collect=()=>{
     const allItems = [...list.children]
-      .map(li=>({id:li.dataset.id,text:li.querySelector('.txt').value.trim(),done:li.querySelector('.check').checked}));
+      .filter(li => li.tagName === 'LI') // فقط LI elements را در نظر بگیر
+      .map(li => {
+        const txtElement = li.querySelector('.txt');
+        const checkElement = li.querySelector('.check');
+        
+        // بررسی وجود element ها
+        if (!txtElement || !checkElement) {
+          console.warn('Missing elements in li:', li);
+          return null;
+        }
+        
+        return {
+          id: li.dataset.id,
+          text: txtElement.value.trim(),
+          done: checkElement.checked
+        };
+      })
+      .filter(item => item !== null); // حذف آیتم‌های null
     
     console.log('Collect - All items from DOM:', allItems);
     
@@ -394,8 +411,33 @@
   };
 
   let t=null; const debounceSave=()=>{clearTimeout(t);t=setTimeout(save,260)};
-  const refreshProgress=()=>{const items=collect();const total=items.length,done=items.filter(i=>i.done).length;const p= total? Math.round(done/total*100):0;document.getElementById('bar').style.width=p+'%';document.getElementById('progressPercent').textContent=p+'%';};
-  const updateEmptyHint=()=>{const items=[...list.children];const allDone=items.length>0 && items.every(li=>li.classList.contains('done')||!li.querySelector('.txt').value.trim());document.getElementById('emptyHint').style.display=allDone?'block':'none';};
+  const refreshProgress=()=>{
+    try {
+      const items=collect();
+      const total=items.length;
+      const done=items.filter(i=>i.done).length;
+      const p= total? Math.round(done/total*100):0;
+      document.getElementById('bar').style.width=p+'%';
+      document.getElementById('progressPercent').textContent=p+'%';
+    } catch (error) {
+      console.error('Error in refreshProgress:', error);
+      // در صورت خطا، پیشرفت را 0 قرار بده
+      document.getElementById('bar').style.width='0%';
+      document.getElementById('progressPercent').textContent='0%';
+    }
+  };
+  const updateEmptyHint=()=>{
+    try {
+      const items=[...list.children].filter(li => li.tagName === 'LI'); // فقط LI elements
+      const allDone=items.length>0 && items.every(li=>{
+        const txtElement = li.querySelector('.txt');
+        return li.classList.contains('done') || !txtElement || !txtElement.value.trim();
+      });
+      document.getElementById('emptyHint').style.display=allDone?'block':'none';
+    } catch (error) {
+      console.error('Error in updateEmptyHint:', error);
+    }
+  };
   // استراتژی جدید: فقط از دیتابیس
   function bootstrapToday(){ 
     console.log('Bootstrap disabled - using database only');
@@ -413,8 +455,11 @@
     // اگر آیتمی وجود ندارد، پیام نمایش بده
     if (items.length === 0) {
       list.innerHTML = '<div class="empty-message" style="text-align: center; padding: 20px; color: #666;">هیچ وظیفه‌ای موجود نیست</div>';
-      refreshProgress();
-      updateEmptyHint();
+      // تاخیر برای اطمینان از آماده بودن DOM
+      setTimeout(() => {
+        refreshProgress();
+        updateEmptyHint();
+      }, 100);
       console.log('No items found, showing empty message');
       return;
     }
@@ -437,8 +482,11 @@
     // مرتب کردن: آیتم‌های انجام نشده بالا، انجام شده پایین
     [...list.children].filter(li => li.classList.contains('done')).forEach(li => list.appendChild(li));
     
-    refreshProgress();
-    updateEmptyHint();
+    // تاخیر برای اطمینان از آماده بودن DOM
+    setTimeout(() => {
+      refreshProgress();
+      updateEmptyHint();
+    }, 100);
     console.log('refreshUI completed, items rendered:', items.length);
   }
   

@@ -11,21 +11,21 @@ router.post('/register', async (req, res) => {
 
     // Validation
     if (!firstName || !lastName || !username || !password) {
-      return res.status(400).json({ error: 'All fields are required' });
+      return res.status(400).json({ error: 'تمام فیلدها الزامی است' });
     }
 
     if (password.length < 6) {
-      return res.status(400).json({ error: 'Password must be at least 6 characters' });
+      return res.status(400).json({ error: 'رمز عبور باید حداقل 6 کاراکتر باشد' });
     }
 
     if (username.length < 3) {
-      return res.status(400).json({ error: 'Username must be at least 3 characters' });
+      return res.status(400).json({ error: 'نام کاربری باید حداقل 3 کاراکتر باشد' });
     }
 
     // Check if user already exists
     const existingUser = await User.findOne({ username });
     if (existingUser) {
-      return res.status(400).json({ error: 'Username already exists' });
+      return res.status(400).json({ error: 'نام کاربری قبلاً استفاده شده است' });
     }
 
     // Create new user
@@ -42,7 +42,7 @@ router.post('/register', async (req, res) => {
     const token = generateToken(user._id);
 
     res.status(201).json({
-      message: 'User registered successfully',
+      message: 'کاربر با موفقیت ثبت شد',
       token,
       user: {
         id: user._id,
@@ -54,7 +54,7 @@ router.post('/register', async (req, res) => {
     });
   } catch (error) {
     console.error('Registration error:', error);
-    res.status(500).json({ error: 'Registration failed' });
+    res.status(500).json({ error: 'ثبت نام ناموفق بود' });
   }
 });
 
@@ -65,26 +65,26 @@ router.post('/login', async (req, res) => {
 
     // Validation
     if (!username || !password) {
-      return res.status(400).json({ error: 'Username and password are required' });
+      return res.status(400).json({ error: 'نام کاربری و رمز عبور الزامی است' });
     }
 
     // Find user
     const user = await User.findOne({ username });
     if (!user) {
-      return res.status(401).json({ error: 'Invalid credentials' });
+      return res.status(401).json({ error: 'نام کاربری یا رمز عبور اشتباه است' });
     }
 
     // Check password
     const isMatch = await user.comparePassword(password);
     if (!isMatch) {
-      return res.status(401).json({ error: 'Invalid credentials' });
+      return res.status(401).json({ error: 'نام کاربری یا رمز عبور اشتباه است' });
     }
 
     // Generate token
     const token = generateToken(user._id);
 
     res.json({
-      message: 'Login successful',
+      message: 'ورود موفقیت‌آمیز',
       token,
       user: {
         id: user._id,
@@ -96,7 +96,7 @@ router.post('/login', async (req, res) => {
     });
   } catch (error) {
     console.error('Login error:', error);
-    res.status(500).json({ error: 'Login failed' });
+    res.status(500).json({ error: 'ورود ناموفق بود' });
   }
 });
 

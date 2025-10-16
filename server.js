@@ -9,6 +9,31 @@ const PUBLIC_DIR = path.join(__dirname, 'public');
 
 app.use(express.json());
 
+// Clear database endpoint (for development only) - NO AUTH REQUIRED
+app.post('/api/clear-database', async (req, res) => {
+  try {
+    const User = require('./models/User');
+    const Task = require('./models/Task');
+    const Timer = require('./models/Timer');
+    const Checklist = require('./models/Checklist');
+    const Mood = require('./models/Mood');
+    
+    console.log('Clearing database...');
+    
+    await User.deleteMany({});
+    await Task.deleteMany({});
+    await Timer.deleteMany({});
+    await Checklist.deleteMany({});
+    await Mood.deleteMany({});
+    
+    console.log('Database cleared successfully');
+    res.json({ message: 'Database cleared successfully' });
+  } catch (error) {
+    console.error('Error clearing database:', error);
+    res.status(500).json({ error: 'Failed to clear database' });
+  }
+});
+
 // API Routes
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api', require('./routes/api'));

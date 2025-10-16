@@ -485,11 +485,25 @@
     const pct = counts.map(n=>Math.round(n/total*100));
     
     console.log('Mood stats:', {counts, total, pct, docs: docs?.length || 0});
-    ['rb-ang','rb-sad','rb-bored','rb-happy','rb-excited'].forEach((id,i)=>{const el=document.getElementById(id); if(el) el.style.width=pct[i]+'%';});
-    ['rt-ang','rt-sad','rt-bored','rt-happy','rt-excited'].forEach((id,i)=>{const el=document.getElementById(id); if(el) el.textContent=pct[i]+'%';});
+    
+    // فقط اگر داده‌ای وجود دارد، نمودارها را به‌روزرسانی کن
+    if (total > 0 && docs && docs.length > 0) {
+      ['rb-ang','rb-sad','rb-bored','rb-happy','rb-excited'].forEach((id,i)=>{const el=document.getElementById(id); if(el) el.style.width=pct[i]+'%';});
+      ['rt-ang','rt-sad','rt-bored','rt-happy','rt-excited'].forEach((id,i)=>{const el=document.getElementById(id); if(el) el.textContent=pct[i]+'%';});
+    } else {
+      // اگر داده‌ای وجود ندارد، نمودارها را صفر کن
+      ['rb-ang','rb-sad','rb-bored','rb-happy','rb-excited'].forEach((id,i)=>{const el=document.getElementById(id); if(el) el.style.width='0%';});
+      ['rt-ang','rt-sad','rt-bored','rt-happy','rt-excited'].forEach((id,i)=>{const el=document.getElementById(id); if(el) el.textContent='0%';});
+    }
     const maxIdx = counts.indexOf(Math.max(...counts));
     const dominantMood = (total>0 && maxIdx>=0 && maxIdx<moodMap.length && moodMap[maxIdx]) ? moodMap[maxIdx] : null;
-    document.getElementById('avgRange').textContent = (dominantMood && dominantMood.emo && dominantMood.label ? `حس غالب: ${dominantMood.emo} ${dominantMood.label}` : '—');
+    
+    // بررسی اینکه آیا واقعاً داده‌ای وجود دارد
+    if (total === 0 || !docs || docs.length === 0) {
+      document.getElementById('avgRange').textContent = 'داده‌ای ثبت نشده است';
+    } else {
+      document.getElementById('avgRange').textContent = (dominantMood && dominantMood.emo && dominantMood.label ? `حس غالب: ${dominantMood.emo} ${dominantMood.label}` : '—');
+    }
 
     if (dailyOnly) {
       daysList.innerHTML='';

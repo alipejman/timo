@@ -488,10 +488,22 @@
           sessionStart = null; accSeconds = 0;
 
           isStudy=false; remaining=breakTime; document.getElementById('modeBox').textContent='زمان استراحت ☕'; setBg(false); toast('مطالعه تمام شد، استراحت کن ☕');
-          updateTimer(); // فقط نمایش زمان، شروع نکن
+          updateTimer();
+          // شروع خودکار فاز استراحت
+          setTimeout(() => {
+            if (!isRunning) { // اگر کاربر توقف نکرده باشد
+              startTimer();
+            }
+          }, 2000); // 2 ثانیه تاخیر برای نمایش پیام
         } else {
           isStudy=true; remaining=studyTime; document.getElementById('modeBox').textContent='زمان مطالعه 📚'; setBg(true); toast('استراحت تمام شد، برگرد به مطالعه 📚');
-          updateTimer(); // فقط نمایش زمان، شروع نکن
+          updateTimer();
+          // شروع خودکار فاز مطالعه
+          setTimeout(() => {
+            if (!isRunning) { // اگر کاربر توقف نکرده باشد
+              startTimer();
+            }
+          }, 2000); // 2 ثانیه تاخیر برای نمایش پیام
         }
       }
     },1000);
@@ -502,23 +514,45 @@
   };
   document.getElementById('pause').onclick = ()=>{
     enableAudio();
-    clearInterval(interval); if(!isRunning) return; isRunning=false;
-    if(isStudy && accSeconds>0){ const endISO=new Date().toISOString(); apiAddSeconds(accSeconds, null).then(updateTodayLine).catch(err => console.error('Error saving timer:', err)); }
+    clearInterval(interval); 
+    if(!isRunning) return; 
+    isRunning=false;
+    if(isStudy && accSeconds>0){ 
+      const endISO=new Date().toISOString(); 
+      apiAddSeconds(accSeconds, null).then(updateTodayLine).catch(err => console.error('Error saving timer:', err)); 
+    }
     sessionStart=null; accSeconds=0;
+    toast('تایمر متوقف شد ⏸️');
   };
   document.getElementById('reset').onclick = ()=>{
     enableAudio();
-    clearInterval(interval); isRunning=false;
-    if(isStudy && accSeconds>0){ const endISO=new Date().toISOString(); apiAddSeconds(accSeconds, null).then(updateTodayLine).catch(err => console.error('Error saving timer:', err)); }
+    clearInterval(interval); 
+    isRunning=false;
+    if(isStudy && accSeconds>0){ 
+      const endISO=new Date().toISOString(); 
+      apiAddSeconds(accSeconds, null).then(updateTodayLine).catch(err => console.error('Error saving timer:', err)); 
+    }
     sessionStart=null; accSeconds=0;
 
     isStudy=true; remaining=studyTime; document.getElementById('modeBox').textContent='زمان مطالعه 📚'; setBg(true); updateTimer();
+    toast('تایمر ریست شد 🔄');
   };
   document.getElementById('end').onclick = ()=>{
     enableAudio();
-    clearInterval(interval); if(isStudy && accSeconds>0){ const endISO=new Date().toISOString(); apiAddSeconds(accSeconds, null).then(updateTodayLine).catch(err => console.error('Error saving timer:', err)); }
+    clearInterval(interval); 
+    if(isStudy && accSeconds>0){ 
+      const endISO=new Date().toISOString(); 
+      apiAddSeconds(accSeconds, null).then(updateTodayLine).catch(err => console.error('Error saving timer:', err)); 
+    }
     isRunning=false; sessionStart=null; accSeconds=0;
-    remaining=studyTime; updateTimer(); toast('تایم مطالعه ثبت شد ✅');
+    
+    // برگشت به حالت مطالعه (حتی اگر در استراحت باشیم)
+    isStudy=true; 
+    remaining=studyTime; 
+    document.getElementById('modeBox').textContent='زمان مطالعه 📚'; 
+    setBg(true); 
+    updateTimer(); 
+    toast('تایم مطالعه ثبت شد ✅');
   };
   updateTimer();
 

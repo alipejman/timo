@@ -68,7 +68,10 @@ router.delete('/tasks/:id', async (req, res) => {
 // ذخیره جلسه تایمر
 router.post('/timers', async (req, res) => {
   try {
-    const timer = new Timer(req.body);
+    const timer = new Timer({
+      ...req.body,
+      user: req.user._id
+    });
     await timer.save();
     res.status(201).json(timer);
   } catch (error) {
@@ -79,7 +82,7 @@ router.post('/timers', async (req, res) => {
 // دریافت تاریخچه تایمرها
 router.get('/timers', async (req, res) => {
   try {
-    const timers = await Timer.find().sort({ completedAt: -1 });
+    const timers = await Timer.find({ user: req.user._id }).sort({ completedAt: -1 });
     res.json(timers);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -454,6 +457,7 @@ router.post('/timer/save', async (req, res) => {
     }
     
     const timer = new Timer({
+      user: req.user._id,
       sessionType,
       duration,
       notes,
