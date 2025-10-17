@@ -586,33 +586,6 @@
         position: relative;
       `;
       
-      // Responsive styles for mobile
-      if (window.innerWidth <= 768) {
-        modalContent.style.cssText += `
-          padding: 20px 16px;
-          border-radius: 16px;
-          margin: 0 5px;
-          max-height: 90vh;
-        `;
-        
-        // کاهش فونت‌سایزها برای موبایل
-        titleDiv.style.cssText += 'font-size: 18px; margin-bottom: 14px;';
-        descDiv.style.cssText += 'font-size: 14px; margin-bottom: 20px;';
-        
-        // کاهش فونت‌سایز سوال و دکمه‌ها
-        questionDiv.style.cssText += 'font-size: 14px; margin-bottom: 20px;';
-        
-        // کاهش فونت‌سایز متن کارها
-        const taskTexts = contentDiv.querySelectorAll('span[style*="font-size: 16px"]');
-        taskTexts.forEach(span => {
-          span.style.fontSize = '14px';
-        });
-        
-        // کاهش فونت‌سایز و padding دکمه‌ها
-        confirmBtn.style.cssText += 'font-size: 14px; padding: 12px 20px; min-width: 120px;';
-        cancelBtn.style.cssText += 'font-size: 14px; padding: 12px 20px; min-width: 120px;';
-      }
-      
       // جلوگیری از بستن پاپ‌آپ با کلیک روی محتوا
       modalContent.addEventListener('click', (e) => {
         console.log('ModalContent click detected');
@@ -744,6 +717,33 @@
       
       modal.appendChild(modalContent);
       document.body.appendChild(modal);
+      
+      // Responsive styles for mobile
+      if (window.innerWidth <= 768) {
+        modalContent.style.cssText += `
+          padding: 20px 16px;
+          border-radius: 16px;
+          margin: 0 5px;
+          max-height: 90vh;
+        `;
+        
+        // کاهش فونت‌سایزها برای موبایل
+        titleDiv.style.cssText += 'font-size: 18px; margin-bottom: 14px;';
+        descDiv.style.cssText += 'font-size: 14px; margin-bottom: 20px;';
+        
+        // کاهش فونت‌سایز سوال و دکمه‌ها
+        questionDiv.style.cssText += 'font-size: 14px; margin-bottom: 20px;';
+        
+        // کاهش فونت‌سایز متن کارها
+        const taskTexts = contentDiv.querySelectorAll('span[style*="font-size: 16px"]');
+        taskTexts.forEach(span => {
+          span.style.fontSize = '14px';
+        });
+        
+        // کاهش فونت‌سایز و padding دکمه‌ها
+        confirmBtn.style.cssText += 'font-size: 14px; padding: 12px 20px; min-width: 120px;';
+        cancelBtn.style.cssText += 'font-size: 14px; padding: 12px 20px; min-width: 120px;';
+      }
       
       // Event listeners
       document.getElementById('confirmPostpone').addEventListener('click', async () => {
