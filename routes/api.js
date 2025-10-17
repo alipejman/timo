@@ -36,6 +36,21 @@ router.get('/timers', async (req, res) => {
   }
 });
 
+// حذف آخرین تایمر
+router.delete('/timers', async (req, res) => {
+  try {
+    const lastTimer = await Timer.findOne({ user: req.user._id }).sort({ completedAt: -1 });
+    if (!lastTimer) {
+      return res.status(404).json({ error: 'تایمری برای حذف پیدا نشد' });
+    }
+    
+    await Timer.findByIdAndDelete(lastTimer._id);
+    res.json({ message: 'آخرین تایمر حذف شد' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Routes برای Checklist
 // دریافت چک‌لیست بر اساس تاریخ
 router.get('/checklist', async (req, res) => {

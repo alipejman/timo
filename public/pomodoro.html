@@ -263,7 +263,7 @@
 <div class="modal-box" id="reportModal">
   <div class="modal-head right">
     <button class="close-soft" onclick="closeModal('reportModal')">بستن</button>
-    <strong>📊 گزارش‌گیری</strong>
+    <strong>📊 گزارش گیری تایمر مطالعه</strong>
   </div>
   <div class="modal-body">
     <p id="todayLine" class="mb-3 fw-bold">امروز ۰ دقیقه مطالعه کردی 📚</p>
@@ -525,14 +525,28 @@
     sessionStart=null; accSeconds=0;
     toast('تایمر متوقف شد ⏸️');
   };
-  document.getElementById('reset').onclick = ()=>{
+  document.getElementById('reset').onclick = async ()=>{
     enableAudio();
     clearInterval(interval); 
     isRunning=false;
-    if(isStudy && accSeconds>0){ 
-      const endISO=new Date().toISOString(); 
-      apiAddSeconds(accSeconds, null).then(updateTodayLine).catch(err => console.error('Error saving timer:', err)); 
+    
+    // اگر در حالت استراحت هستیم و زمان مطالعه قبلاً ثبت شده، آن را حذف کن
+    if (!isStudy) {
+      try {
+        // حذف آخرین تایمر ثبت شده
+        const response = await fetch('/api/timers', {
+          method: 'DELETE',
+          headers: window.AuthUtils.getAuthHeaders()
+        });
+        if (response.ok) {
+          console.log('Last timer session removed');
+          updateTodayLine(); // به‌روزرسانی خط امروز
+        }
+      } catch (error) {
+        console.error('Error removing last timer:', error);
+      }
     }
+    
     sessionStart=null; accSeconds=0;
 
     isStudy=true; remaining=studyTime; document.getElementById('modeBox').textContent='زمان مطالعه 📚'; setBg(true); updateTimer();
@@ -692,8 +706,8 @@
       averageDisplay = formatTime(averageSeconds);
     }
     
-    document.getElementById('sumMinutes').textContent = `${totalTime} مطالعه`;
-    document.getElementById('avgMinutes').textContent = daysWithStudy ? `${averageDisplay} میانگین` : '۰ دقیقه';
+    document.getElementById('sumMinutes').textContent = `${totalTime}`;
+    document.getElementById('avgMinutes').textContent = daysWithStudy ? `${averageDisplay}` : '00:00';
     document.getElementById('cards').style.display='block';
     document.getElementById('dailyBox').style.display='none';
   };
@@ -783,17 +797,21 @@
       const k=c.format('jYYYY/jMM/jDD'); 
       const totalSeconds = byDate[k] || 0;
       
-      // فرمت زمان بهتر (بدون ثانیه)
+      // فرمت زمان به دقیقه (مثل: 3 دقیقه، 1:30 ساعت)
       let timeDisplay;
-      if (totalSeconds < 60) {
-        timeDisplay = `${totalSeconds} ثانیه`;
-      } else {
-        const mins = Math.floor(totalSeconds / 60);
-        const hours = Math.floor(mins / 60);
-        const remainingMins = mins % 60;
-        
-        if (hours === 0) {
+      const mins = Math.floor(totalSeconds / 60);
+      const hours = Math.floor(mins / 60);
+      const remainingMins = mins % 60;
+      
+      if (hours === 0) {
+        if (mins === 0) {
+          timeDisplay = `0 دقیقه`;
+        } else {
           timeDisplay = `${mins} دقیقه`;
+        }
+      } else {
+        if (remainingMins === 0) {
+          timeDisplay = `${hours} ساعت`;
         } else {
           timeDisplay = `${hours}:${String(remainingMins).padStart(2,'0')} ساعت`;
         }
@@ -963,8 +981,8 @@
         errBox: !!errBoxEl
       });
       
-      if (sumMinutesEl) sumMinutesEl.textContent = `${workTime} مطالعه`;
-      if (avgMinutesEl) avgMinutesEl.textContent = `${averageDisplay} میانگین`;
+      if (sumMinutesEl) sumMinutesEl.textContent = `${workTime} `;
+      if (avgMinutesEl) avgMinutesEl.textContent = `${averageDisplay}`;
       if (cardsEl) cardsEl.style.display = 'block';
       if (errBoxEl) errBoxEl.style.display = 'none';
       

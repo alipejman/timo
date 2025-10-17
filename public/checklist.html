@@ -472,12 +472,38 @@
   };
   const updateEmptyHint=()=>{
     try {
+      console.log('=== updateEmptyHint called ===');
       const items=[...list.children].filter(li => li.tagName === 'LI'); // فقط LI elements
-      const allDone=items.length>0 && items.every(li=>{
+      console.log('Total items:', items.length);
+      
+      // اگر هیچ آیتمی وجود ندارد، emptyHint را مخفی کن
+      if (items.length === 0) {
+        console.log('No items, hiding emptyHint');
+        document.getElementById('emptyHint').style.display='none';
+        return;
+      }
+      
+      // بررسی آیتم‌هایی که text دارند و انجام شده‌اند
+      const itemsWithText = items.filter(li => {
         const txtElement = li.querySelector('.txt');
-        const checkElement = li.querySelector('.check');
-        return (checkElement && checkElement.checked) || !txtElement || !txtElement.value.trim();
+        return txtElement && txtElement.value.trim();
       });
+      
+      console.log('Items with text:', itemsWithText.length);
+      
+      // اگر هیچ آیتمی با text وجود ندارد، emptyHint را مخفی کن
+      if (itemsWithText.length === 0) {
+        console.log('No items with text, hiding emptyHint');
+        document.getElementById('emptyHint').style.display='none';
+        return;
+      }
+      
+      const allDone = itemsWithText.every(li=>{
+        const checkElement = li.querySelector('.check');
+        return checkElement && checkElement.checked;
+      });
+      
+      console.log('All done:', allDone);
       document.getElementById('emptyHint').style.display=allDone?'block':'none';
     } catch (error) {
       console.error('Error in updateEmptyHint:', error);
@@ -491,14 +517,47 @@
   
   // تابع برای رندر آیتم‌ها از سرور
   function refreshUI(items) {
-    console.log('refreshUI called with items:', items);
+    console.log('=== refreshUI called ===');
+    console.log('Items:', items);
+    console.log('Items length:', items ? items.length : 'undefined');
+    console.log('Current DOM items:', [...list.children].filter(li => li.tagName === 'LI').length);
+    console.log('Stack trace:', new Error().stack);
+    
     if (!items || !Array.isArray(items)) {
       console.log('No valid items provided to refreshUI');
       return;
     }
     
-    // اگر آیتمی وجود ندارد، پیام نمایش بده
+    // اگر آیتمی وجود ندارد، بررسی کن که آیا آیتم‌هایی در DOM وجود دارند
     if (items.length === 0) {
+      console.log('=== No items from server, checking DOM ===');
+      const existingItems = [...list.children].filter(li => li.tagName === 'LI');
+      console.log('Existing DOM items:', existingItems.length);
+      
+      if (existingItems.length > 0) {
+        console.log('Items exist in DOM, not showing empty message');
+        // فقط progress را به‌روزرسانی کن
+        refreshProgress();
+        updateEmptyHint();
+        return;
+      }
+      
+      // بررسی آیتم‌هایی که text دارند
+      const itemsWithText = existingItems.filter(li => {
+        const txtElement = li.querySelector('.txt');
+        return txtElement && txtElement.value.trim();
+      });
+      
+      console.log('Items with text:', itemsWithText.length);
+      
+      if (itemsWithText.length > 0) {
+        console.log('Items with text exist in DOM, not showing empty message');
+        refreshProgress();
+        updateEmptyHint();
+        return;
+      }
+      
+      console.log('No items in DOM, showing empty message');
       list.innerHTML = '<div class="empty-message" style="text-align: center; padding: 20px; color: #666;">هیچ وظیفه‌ای موجود نیست</div>';
       // تاخیر برای اطمینان از آماده بودن DOM
       setTimeout(() => {
@@ -539,7 +598,29 @@
   window.refreshUI = refreshUI;
   
   bootstrapToday();
-  document.getElementById('add').addEventListener('click',()=>{const li=makeItem(); list.insertBefore(li,[...list.children].find(x=>x.classList.contains('done'))||null); li.querySelector('.txt').focus(); save(); refreshProgress();});
+  document.getElementById('add').addEventListener('click',()=>{
+    console.log('=== Add button clicked ===');
+    console.log('DOM items before:', [...list.children].filter(li => li.tagName === 'LI').length);
+    
+    // پاک کردن پیام خالی اگر وجود دارد
+    const emptyMessage = list.querySelector('.empty-message');
+    if (emptyMessage) {
+      console.log('Removing empty message');
+      emptyMessage.remove();
+    }
+    
+    const li=makeItem(); 
+    list.insertBefore(li,[...list.children].find(x=>x.classList.contains('done'))||null); 
+    li.querySelector('.txt').focus(); 
+    
+    console.log('DOM items after:', [...list.children].filter(li => li.tagName === 'LI').length);
+    
+    save(); 
+    refreshProgress(); 
+    updateEmptyHint();
+    
+    console.log('=== Add button completed ===');
+  });
 
   // سینک قبل از بازگشت به صفحه اصلی
   const backLink = document.querySelector('a.back-btn');
@@ -563,7 +644,7 @@
   window.closeReport=closeReport; dim.addEventListener('click',closeReport);
 
   // تاریخ مشترک
-  const ERR_TXT='لطفاً تاریخ را با فرمت درست وارد کنید.';
+  const ERR_TXT='❌ نمی‌توانید تاریخ آینده را انتخاب کنید! لطفاً فقط تاریخ‌های گذشته و امروز را انتخاب کنید.';
   const keyDMY=(d,m,y)=>`${y}/${String(m).padStart(2,'0')}/${String(d).padStart(2,'0')}`;
   const validDMY=s=>/^\d{2}\/\d{2}\/\d{4}$/.test(s)&&moment.from(keyDMY(...s.split('/').map(Number)),'fa','jYYYY/jMM/jDD').isValid();
   const DMYtoYMD=s=>{const [d,m,y]=s.split("/").map(Number);return keyDMY(d,m,y);};
@@ -792,7 +873,8 @@
   // --- 1) بارگذاری اولیه از سرور
   (async function initializeChecklist() {
     try {
-      console.log('Initializing checklist...');
+      console.log('=== initializeChecklist started ===');
+      console.log('DOM items at start:', [...list.children].filter(li => li.tagName === 'LI').length);
       
       // بررسی احراز هویت
     if (!window.AuthUtils.isAuthenticated()) {
@@ -803,6 +885,7 @@
       // بارگذاری از سرور
       const server = await apiGet(date);
       console.log('Initial load - Server response:', server);
+      console.log('DOM items before refreshUI:', [...list.children].filter(li => li.tagName === 'LI').length);
       
       if (server && Array.isArray(server.items)) {
         console.log('Server response received, rendering items...');
@@ -812,9 +895,15 @@
           console.log('Initial load completed, no auto-sync');
         }
       } else {
-        console.log('Server response invalid, showing empty message');
-        if (typeof window.refreshUI === 'function') {
-          window.refreshUI([]);
+        console.log('Server response invalid, checking DOM for existing items');
+        const existingItems = [...list.children].filter(li => li.tagName === 'LI');
+        if (existingItems.length === 0) {
+          console.log('No items in DOM, showing empty message');
+          if (typeof window.refreshUI === 'function') {
+            window.refreshUI([]);
+          }
+        } else {
+          console.log('Items exist in DOM, not showing empty message');
         }
       }
     } catch (e) {

@@ -83,6 +83,15 @@
             border-radius: 10px;
             margin-bottom: 1rem;
         }
+        
+        .password-toggle {
+            transition: all 0.3s ease;
+        }
+        
+        .password-toggle:hover {
+            color: var(--bg1) !important;
+            transform: translateY(-50%) scale(1.1);
+        }
 
         /* Mobile Responsive Styles */
         @media (max-width: 768px) {
@@ -122,6 +131,11 @@
             .auth-link a {
                 font-size: 0.9rem;
             }
+            
+            .password-toggle {
+                font-size: 16px;
+                left: 12px;
+            }
         }
 
         @media (max-width: 480px) {
@@ -160,6 +174,11 @@
             .auth-link a {
                 font-size: 0.85rem;
             }
+            
+            .password-toggle {
+                font-size: 14px;
+                left: 10px;
+            }
         }
     </style>
 </head>
@@ -177,7 +196,10 @@
             
             <div class="form-group">
                 <label for="password" class="form-label">رمز عبور</label>
-                <input type="password" class="form-control" id="password" name="password" required>
+                <div class="password-input-container" style="position: relative;">
+                    <input type="password" class="form-control" id="password" name="password" required style="padding-left: 50px;">
+                    <button type="button" class="password-toggle" onclick="togglePassword('password')" style="position: absolute; left: 15px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; font-size: 18px; color: #666;">👁️</button>
+                </div>
             </div>
             
             <button type="submit" class="btn btn-primary">ورود</button>
@@ -278,6 +300,19 @@
                     <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                 </div>
             `;
+        }
+
+        function togglePassword(inputId) {
+            const input = document.getElementById(inputId);
+            const button = input.nextElementSibling;
+            
+            if (input.type === 'password') {
+                input.type = 'text';
+                button.textContent = '🙈';
+            } else {
+                input.type = 'password';
+                button.textContent = '👁️';
+            }
         }
     </script>
 </body>
