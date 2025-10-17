@@ -135,7 +135,7 @@ router.post('/checklist/save', async (req, res) => {
     // تبدیل آیتم‌ها از فرمت JavaScript به فرمت دیتابیس
     const dbItems = (items || []).map(item => ({
       text: item.text || '',
-      completed: item.completed !== undefined ? item.completed : (item.done || false)
+      completed: item.completed === true || item.done === true
     }));
     
     // به‌روزرسانی آیتم‌ها
@@ -425,11 +425,16 @@ router.get('/timer/range', async (req, res) => {
       timers: timers
     };
     
+    // محاسبه روزهای دارای مطالعه (روزهایی که حداقل یک تایمر work دارند)
+    const studyDates = new Set();
+    
     timers.forEach(timer => {
       const duration = timer.duration / 60; // تبدیل به دقیقه
       if (timer.sessionType === 'work') {
         stats.totalWork += duration;
         stats.totalSeconds += timer.duration;
+        // اضافه کردن تاریخ به مجموعه روزهای دارای مطالعه
+        studyDates.add(timer.date);
       } else if (timer.sessionType === 'break') {
         stats.totalBreak += duration;
         stats.totalSeconds += timer.duration;
@@ -438,6 +443,9 @@ router.get('/timer/range', async (req, res) => {
         stats.totalSeconds += timer.duration;
       }
     });
+    
+    // اضافه کردن تعداد روزهای دارای مطالعه
+    stats.daysWithStudy = studyDates.size;
     
     console.log('Timer range stats:', stats);
     res.json(stats);

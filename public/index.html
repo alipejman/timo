@@ -79,6 +79,7 @@
   .card:hover { transform: scale(1.1) rotate(-2deg); box-shadow: 0 25px 50px rgba(0,0,0,0.3); }
 
   .card img { width:80px; height:80px; margin-bottom:12px; }
+  .icon-emoji { font-size:80px; margin-bottom:12px; display:block; text-align:center; }
   .card p { font-size:18px; font-weight:800; color:#333; margin:0; }
 
   .mini-footer{
@@ -88,6 +89,30 @@
     display:flex; align-items:center; justify-content:space-between; gap:8px;
   }
   .mini-footer strong{ font-weight:900; color:#111; }
+
+  /* User Icon Styles */
+  #userIcon {
+    transition: all 0.3s ease;
+    background: rgba(255,255,255,0.2) !important;
+    border: 1px solid rgba(255,255,255,0.3) !important;
+    color: white !important;
+    padding: 8px 12px !important;
+    border-radius: 50% !important;
+    cursor: pointer !important;
+    font-size: 18px !important;
+    text-decoration: none !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 40px !important;
+    height: 40px !important;
+  }
+  
+  #userIcon:hover {
+    background: rgba(255,255,255,0.3) !important;
+    transform: scale(1.1);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+  }
 
   /* Mobile Responsive Styles */
   @media (max-width: 768px) {
@@ -134,6 +159,7 @@
       width: 60px;
       height: 60px;
     }
+    .icon-emoji { font-size:60px; }
     
     .card p {
       font-size: 16px;
@@ -147,6 +173,12 @@
     #logoutBtn {
       font-size: 12px;
       padding: 6px 12px;
+    }
+    
+    #userIcon {
+      width: 35px !important;
+      height: 35px !important;
+      font-size: 16px !important;
     }
   }
 
@@ -184,9 +216,16 @@
       width: 50px;
       height: 50px;
     }
+    .icon-emoji { font-size:50px; }
     
     .card p {
       font-size: 14px;
+    }
+    
+    #userIcon {
+      width: 30px !important;
+      height: 30px !important;
+      font-size: 14px !important;
     }
   }
 </style>
@@ -201,7 +240,7 @@
 <body>
 
 <div style="display: flex; justify-content: space-between; align-items: center; width: 100%; max-width: 600px; margin-bottom: 20px; padding-top: 20px;">
-  <div></div>
+  <a href="profile.html" id="userIcon" style="background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3); color: white; padding: 8px 12px; border-radius: 50%; cursor: pointer; font-size: 18px; text-decoration: none; display: flex; align-items: center; justify-content: center; width: 40px; height: 40px;" title="پروفایل کاربر">👤</a>
   <h1 style="margin: 0;">Timo ⏰</h1>
   <button id="logoutBtn" style="background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3); color: white; padding: 8px 16px; border-radius: 20px; cursor: pointer; font-size: 14px;">خروج</button>
 </div>
@@ -211,7 +250,7 @@
   <!-- تایمر -->
   <a class="card-link" href="pomodoro.html" title="رفتن به تایمر">
     <div class="card" id="timer-card">
-      <img src="https://img.icons8.com/ios-filled/100/000000/timer.png" alt="Timer"/>
+      <div class="icon-emoji">⏰</div>
       <p>تایمر مطالعه</p>
       <div class="mini-footer">
         <span>📚 زمان مطالعه امروز</span>
@@ -223,7 +262,7 @@
   <!-- ردیاب حالت -->
   <a class="card-link" href="mood.html" title="رفتن به ردیاب حالت">
     <div class="card" id="tracker-card">
-      <img src="https://img.icons8.com/ios-filled/100/000000/today.png" alt="Mood"/>
+      <div class="icon-emoji">😊</div>
       <p>ردیاب حالت</p>
       <div class="mini-footer">
         <span>🧠 حس امروز</span>
@@ -235,7 +274,7 @@
   <!-- چک لیست -->
   <a class="card-link" href="checklist.html" title="رفتن به چک‌لیست">
     <div class="card" id="checklist-card">
-      <img src="https://img.icons8.com/ios-filled/100/000000/checklist.png" alt="Checklist"/>
+      <div class="icon-emoji">📋</div>
       <p>چک لیست</p>
       <div class="mini-footer">
         <span>📝 کارهای ماندهٔ امروز</span>

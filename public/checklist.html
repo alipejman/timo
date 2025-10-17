@@ -73,6 +73,10 @@
 
   /* Mobile Responsive Styles */
   @media (max-width: 768px) {
+    /* مخفی کردن تولتیپ‌ها در موبایل */
+    .tooltipx {
+      display: none !important;
+    }
     .wrap {
       width: 95vw;
       margin: 60px auto 40px;
@@ -162,6 +166,10 @@
   }
 
   @media (max-width: 480px) {
+    /* مخفی کردن تولتیپ‌ها در موبایل‌های کوچک */
+    .tooltipx {
+      display: none !important;
+    }
     .wrap {
       width: 98vw;
       margin: 50px auto 30px;
@@ -361,8 +369,8 @@
   function makeItem(d={id:crypto.randomUUID(),text:'',done:false}){
     // تبدیل _id به id برای سازگاری
     const itemId = d._id || d.id || crypto.randomUUID();
-    const li=document.createElement('li');li.className='task'+(d.done?' done':'');li.dataset.id=itemId;
-    const cb=document.createElement('input');cb.type='checkbox';cb.className='check';cb.checked=!!d.done;
+    const li=document.createElement('li');li.className='task'+(d.done === true ?' done':'');li.dataset.id=itemId;
+    const cb=document.createElement('input');cb.type='checkbox';cb.className='check';cb.checked=d.done === true;
     const input=document.createElement('input');input.type='text';input.className='txt';input.placeholder='اینجا بنویس…';input.value=d.text||'';
     const del=document.createElement('button');del.className='del';del.title='حذف';del.innerHTML='🗑️';
     li.appendChild(cb);li.appendChild(input);li.appendChild(del);
@@ -371,7 +379,7 @@
       save();refreshProgress();updateEmptyHint();
     });
     input.addEventListener('input',()=>{debounceSave();updateEmptyHint();});
-    del.addEventListener('click',()=>{const item={id:li.dataset.id,text:input.value.trim(),done:cb.checked}; addDeleted(item); li.remove(); save(); refreshProgress(); updateEmptyHint();});
+    del.addEventListener('click',()=>{const item={id:li.dataset.id,text:input.value.trim(),done:cb.checked === true}; addDeleted(item); li.remove(); save(); refreshProgress(); updateEmptyHint();});
     return li;
   }
   const collect=()=>{
@@ -390,7 +398,7 @@
         return {
           id: li.dataset.id,
           text: txtElement.value.trim(),
-          done: checkElement.checked
+          done: checkElement.checked === true
         };
       })
       .filter(item => item !== null); // حذف آیتم‌های null
@@ -398,8 +406,9 @@
     console.log('Collect - All items from DOM:', allItems);
     
     // فیلتر کردن آیتم‌های خالی (فقط برای سینک)
-    const filteredItems = allItems.filter(item => item.text.length > 0);
-    console.log('Collect - Filtered items (non-empty):', filteredItems);
+    // اما آیتم‌های انجام شده را حتی اگر متن خالی داشته باشند نگه دار
+    const filteredItems = allItems.filter(item => item.text.length > 0 || item.done === true);
+    console.log('Collect - Filtered items (non-empty or done):', filteredItems);
     
     return filteredItems;
   };
@@ -415,7 +424,7 @@
     try {
       const items=collect();
       const total=items.length;
-      const done=items.filter(i=>i.done).length;
+      const done=items.filter(i=>i.done === true).length;
       const p= total? Math.round(done/total*100):0;
       document.getElementById('bar').style.width=p+'%';
       document.getElementById('progressPercent').textContent=p+'%';
@@ -431,7 +440,8 @@
       const items=[...list.children].filter(li => li.tagName === 'LI'); // فقط LI elements
       const allDone=items.length>0 && items.every(li=>{
         const txtElement = li.querySelector('.txt');
-        return li.classList.contains('done') || !txtElement || !txtElement.value.trim();
+        const checkElement = li.querySelector('.check');
+        return (checkElement && checkElement.checked) || !txtElement || !txtElement.value.trim();
       });
       document.getElementById('emptyHint').style.display=allDone?'block':'none';
     } catch (error) {
@@ -473,7 +483,7 @@
       const normalizedItem = {
         id: item._id || item.id,
         text: item.text || '',
-        done: item.completed || item.done || false
+        done: item.completed === true || item.done === true
       };
       const li = makeItem(normalizedItem);
       list.appendChild(li);
@@ -535,9 +545,33 @@
 
   // تولتیپ/مودال آیتم‌ها
   const tooltip=document.getElementById('tooltipx');
-  function showTip(ev, items){ if(!items || !items.length){ hideTip(); return; } tooltip.innerHTML = items.slice(0,8).map(t=>`• ${t||'—'}`).join('<br>'); tooltip.style.display='block'; moveTip(ev); }
-  function moveTip(ev){ tooltip.style.left=(ev.clientX+12)+'px'; tooltip.style.top=(ev.clientY+12)+'px'; }
+  function showTip(ev, items){ 
+    // بررسی اینکه آیا در موبایل هستیم یا نه
+    if (window.innerWidth <= 768) {
+      hideTip();
+      return;
+    }
+    if(!items || !items.length){ hideTip(); return; } 
+    tooltip.innerHTML = items.slice(0,8).map(t=>`• ${t||'—'}`).join('<br>'); 
+    tooltip.style.display='block'; 
+    moveTip(ev); 
+  }
+  function moveTip(ev){ 
+    if (window.innerWidth <= 768) {
+      hideTip();
+      return;
+    }
+    tooltip.style.left=(ev.clientX+12)+'px'; 
+    tooltip.style.top=(ev.clientY+12)+'px'; 
+  }
   function hideTip(){ tooltip.style.display='none'; }
+  
+  // مخفی کردن تولتیپ‌ها هنگام تغییر اندازه صفحه
+  window.addEventListener('resize', () => {
+    if (window.innerWidth <= 768) {
+      hideTip();
+    }
+  });
 
   const itemsModal=document.getElementById('itemsModal'), itemsBody=document.getElementById('itemsBody'), itemsTitle=document.getElementById('itemsTitle');
   function openItemsModal(title, items){
@@ -552,9 +586,18 @@
 
   function makeChip(html, items, titleForModal){
     const span=document.createElement('span'); span.className='chip'; span.innerHTML=html;
-    span.addEventListener('mouseenter',(ev)=>showTip(ev,items||[]));
-    span.addEventListener('mousemove',moveTip);
-    span.addEventListener('mouseleave',hideTip);
+    
+    // بررسی اینکه آیا در موبایل هستیم یا نه
+    const isMobile = window.innerWidth <= 768;
+    
+    if (!isMobile) {
+      // فقط در دسکتاپ تولتیپ‌ها را فعال کن
+      span.addEventListener('mouseenter',(ev)=>showTip(ev,items||[]));
+      span.addEventListener('mousemove',moveTip);
+      span.addEventListener('mouseleave',hideTip);
+    }
+    
+    // کلیک برای نمایش مودال (هم در دسکتاپ هم موبایل)
     span.addEventListener('click',()=>openItemsModal(titleForModal||'جزئیات', items||[]));
     return span;
   }
@@ -579,7 +622,14 @@
     while(c.isSameOrBefore(v.mTo)){
       const ymd=c.format('jYYYY/jMM/jDD'); 
       const items=await read(ymd), dels=await readDeleted(ymd), defs=await readPostponed(ymd);
-      items.forEach(it => (it.completed || it.done ? buckets.ok : buckets.warn).push({dateYMD:ymd,text:it.text}));
+      items.forEach(it => {
+        const isCompleted = it.completed === true || it.done === true;
+        if (isCompleted) {
+          buckets.ok.push({dateYMD:ymd,text:it.text});
+        } else {
+          buckets.warn.push({dateYMD:ymd,text:it.text});
+        }
+      });
       (dels||[]).forEach(d=>buckets.del.push({dateYMD:ymd,text:d.text}));
       (defs||[]).forEach(p=>buckets.def.push({dateYMD:ymd,text:p.text}));
       c.add(1,'day');
@@ -619,8 +669,8 @@
     while(c.isSameOrBefore(v.mTo)){
       const ymd=c.format('jYYYY/jMM/jDD'); 
       const items=await read(ymd), dels=await readDeleted(ymd), defs=await readPostponed(ymd);
-      const done=items.filter(i=>(i.completed || i.done)).map(i=>i.text);
-      const undone=items.filter(i=>(!i.completed && !i.done)).map(i=>i.text);
+      const done=items.filter(i=>(i.completed === true || i.done === true)).map(i=>i.text);
+      const undone=items.filter(i=>(i.completed !== true && i.done !== true)).map(i=>i.text);
       const delc=(dels||[]).map(d=>d.text);
       const defc=(defs||[]).map(d=>d.text);
       const total = done.length+undone.length+delc.length+defc.length;

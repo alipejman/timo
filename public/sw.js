@@ -67,24 +67,37 @@ function isApiRequest(url) {
 
 // Cache First برای استاتیک‌ها
 async function cacheFirst(request) {
-  const cached = await caches.match(request, { ignoreSearch: true });
-  if (cached) return cached;
-  const res = await fetch(request);
-  if (res && res.ok) (await caches.open(STATIC_CACHE)).put(request, res.clone());
-  return res;
+  try {
+    const cached = await caches.match(request, { ignoreSearch: true });
+    if (cached) return cached;
+    const res = await fetch(request);
+    if (res && res.ok) {
+      const cache = await caches.open(STATIC_CACHE);
+      await cache.put(request, res.clone());
+    }
+    return res;
+  } catch (error) {
+    console.log('Cache first failed for:', request.url, error);
+    return new Response('', { status: 404 });
+  }
 }
 
 // Stale-While-Revalidate برای APIها
 async function staleWhileRevalidate(request) {
-  const cache = await caches.open(RUNTIME_CACHE);
-  const cached = await cache.match(request);
-  const network = fetch(request)
-    .then(res => {
-      if (res && res.ok) cache.put(request, res.clone());
-      return res;
-    })
-    .catch(() => cached);
-  return cached || network;
+  try {
+    const cache = await caches.open(RUNTIME_CACHE);
+    const cached = await cache.match(request);
+    const network = fetch(request)
+      .then(res => {
+        if (res && res.ok) cache.put(request, res.clone());
+        return res;
+      })
+      .catch(() => cached);
+    return cached || network;
+  } catch (error) {
+    console.log('Stale while revalidate failed for:', request.url, error);
+    return new Response('', { status: 404 });
+  }
 }
 
 self.addEventListener('fetch', (event) => {
@@ -92,19 +105,37 @@ self.addEventListener('fetch', (event) => {
 
   if (request.method !== 'GET') return;
 
-  if (isApiRequest(request.url)) {
-    event.respondWith(staleWhileRevalidate(request));
-    return;
+  try {
+    if (isApiRequest(request.url)) {
+      event.respondWith(staleWhileRevalidate(request));
+      return;
+    }
+
+    const url = new URL(request.url);
+
+    if (url.origin === self.location.origin) {
+      event.respondWith(cacheFirst(request));
+      return;
+    }
+
+    // برای تصاویر خارجی، فقط fetch کن و cache نکن
+    if (request.destination === 'image' && !url.origin.includes(self.location.origin)) {
+      event.respondWith(fetch(request).catch(() => {
+        // اگر تصویر بارگذاری نشد، یک تصویر خالی برگردان
+        return new Response('', {
+          status: 200,
+          statusText: 'OK',
+          headers: { 'Content-Type': 'image/png' }
+        });
+      }));
+      return;
+    }
+
+    event.respondWith(fetch(request).catch(() => caches.match(request)));
+  } catch (error) {
+    console.log('Fetch event error:', error);
+    event.respondWith(new Response('', { status: 404 }));
   }
-
-  const url = new URL(request.url);
-
-  if (url.origin === self.location.origin) {
-    event.respondWith(cacheFirst(request));
-    return;
-  }
-
-  event.respondWith(fetch(request).catch(() => caches.match(request)));
 });
 
 self.addEventListener('message', (event) => {

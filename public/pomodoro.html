@@ -618,20 +618,27 @@
 
     const docs = await apiRange(convertedFrom, convertedTo);
     const sumSecs = docs.reduce((s,d)=>s+(d.duration||0), 0);
-    const daysWithStudy = docs.filter(d => (d.duration||0)>0).length;
     
-    // فرمت زمان
+    // محاسبه روزهای دارای مطالعه (روزهایی که حداقل یک تایمر work دارند)
+    const studyDates = new Set();
+    docs.forEach(timer => {
+      if (timer.sessionType === 'work' && (timer.duration || 0) > 0) {
+        studyDates.add(timer.date);
+      }
+    });
+    const daysWithStudy = studyDates.size;
+    
+    // فرمت زمان (بدون ثانیه)
     const formatTime = (seconds) => {
       if (!seconds || seconds === 0) return '00:00';
       const totalSeconds = Math.round(seconds);
       const h = Math.floor(totalSeconds / 3600);
       const m = Math.floor((totalSeconds % 3600) / 60);
-      const sec = totalSeconds % 60;
       
       if (h === 0) {
-        return `${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
+        return `${String(m).padStart(2,'0')}:00`;
       } else {
-        return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
+        return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:00`;
       }
     };
     
@@ -699,17 +706,19 @@
       const k=c.format('jYYYY/jMM/jDD'); 
       const totalSeconds = byDate[k] || 0;
       
-      // فرمت زمان بهتر
+      // فرمت زمان بهتر (بدون ثانیه)
       let timeDisplay;
       if (totalSeconds < 60) {
         timeDisplay = `${totalSeconds} ثانیه`;
       } else {
         const mins = Math.floor(totalSeconds / 60);
-        const secs = totalSeconds % 60;
-        if (secs === 0) {
+        const hours = Math.floor(mins / 60);
+        const remainingMins = mins % 60;
+        
+        if (hours === 0) {
           timeDisplay = `${mins} دقیقه`;
         } else {
-          timeDisplay = `${mins}:${String(secs).padStart(2,'0')} دقیقه`;
+          timeDisplay = `${hours}:${String(remainingMins).padStart(2,'0')} ساعت`;
         }
       }
       
@@ -779,32 +788,30 @@
       const data = await response.json();
       console.log('Timer range response:', data);
       
-      const formatTime = (minutes) => {
-        console.log('Formatting time - input minutes:', minutes);
+      const formatTime = (seconds) => {
+        console.log('Formatting time - input seconds:', seconds);
         
-        // بررسی اگر minutes صفر یا undefined باشد
-        if (!minutes || minutes === 0) {
+        // بررسی اگر seconds صفر یا undefined باشد
+        if (!seconds || seconds === 0) {
           console.log('No time to format, returning 00:00');
           return '00:00';
         }
         
-        // تبدیل دقیقه به ثانیه (با دقت کامل)
-        const totalSeconds = Math.round(minutes * 60);
+        const totalSeconds = Math.round(seconds);
         console.log('Total seconds:', totalSeconds);
         
         const h = Math.floor(totalSeconds / 3600);
         const m = Math.floor((totalSeconds % 3600) / 60);
-        const sec = totalSeconds % 60;
         
-        console.log('Calculated - Hours:', h, 'Minutes:', m, 'Seconds:', sec);
+        console.log('Calculated - Hours:', h, 'Minutes:', m);
         
         if (h === 0) {
-          const result = `${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
-          console.log('Result (MM:SS):', result);
+          const result = `${String(m).padStart(2,'0')}:00`;
+          console.log('Result (MM:00):', result);
           return result;
         } else {
-          const result = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
-          console.log('Result (HH:MM:SS):', result);
+          const result = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:00`;
+          console.log('Result (HH:MM:00):', result);
           return result;
         }
       };
@@ -814,8 +821,9 @@
       console.log('totalBreak value:', data.totalBreak);
       console.log('sessions value:', data.sessions);
       
-      const workTime = formatTime(data.totalWork || 0);
-      const breakTime = formatTime(data.totalBreak || 0);
+      // تبدیل دقیقه به ثانیه برای formatTime
+      const workTime = formatTime((data.totalWork || 0) * 60);
+      const breakTime = formatTime((data.totalBreak || 0) * 60);
       const sessions = data.sessions || 0;
       
       console.log('Formatted workTime:', workTime);
@@ -823,25 +831,45 @@
       console.log('Sessions count:', sessions);
       
       // محاسبه میانگین روزهای دارای مطالعه
-      const totalWorkMinutes = data.totalWork || 0;
-      const daysWithStudy = sessions; // تعداد جلسات = تعداد روزهای دارای مطالعه
+      const totalWorkMinutes = data.totalWork || 0; // این در دقیقه است
+      let daysWithStudy = data.daysWithStudy || 0; // تعداد روزهای دارای مطالعه
+      
+      // اگر daysWithStudy صفر است، از sessions استفاده کن (fallback)
+      if (daysWithStudy === 0 && data.sessions > 0) {
+        daysWithStudy = data.sessions;
+        console.log('Using sessions as fallback for daysWithStudy:', daysWithStudy);
+      }
+      
       const averageMinutes = daysWithStudy > 0 ? totalWorkMinutes / daysWithStudy : 0;
       
-      // اگر میانگین کمتر از 1 دقیقه است، به صورت دقیقه نمایش بده
+      console.log('Debug average calculation:', {
+        totalWorkMinutes,
+        daysWithStudy,
+        averageMinutes,
+        dataTotalWork: data.totalWork,
+        dataDaysWithStudy: data.daysWithStudy
+      });
+      
+      // اگر میانگین کمتر از 1 دقیقه است، به صورت ثانیه نمایش بده
       let averageDisplay;
       if (averageMinutes < 1) {
         const averageSeconds = Math.round(averageMinutes * 60);
         averageDisplay = `${averageSeconds} ثانیه`;
       } else {
-        averageDisplay = formatTime(averageMinutes);
+        // تبدیل دقیقه به ثانیه برای formatTime
+        const averageSeconds = averageMinutes * 60;
+        averageDisplay = formatTime(averageSeconds);
       }
       
-      console.log('Average calculation:', {
-        totalWorkMinutes,
-        daysWithStudy,
-        averageMinutes,
-        averageDisplay
-      });
+      console.log('=== Average calculation FINAL ===');
+      console.log('Total work minutes:', totalWorkMinutes);
+      console.log('Days with study:', daysWithStudy);
+      console.log('Average minutes:', averageMinutes);
+      console.log('Average seconds:', averageMinutes * 60);
+      console.log('Average display:', averageDisplay);
+      console.log('=================================');
+      
+      console.log('Full API response:', data);
       
       // بررسی وجود عناصر DOM
       const sumMinutesEl = document.getElementById('sumMinutes');
