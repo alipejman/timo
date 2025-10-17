@@ -441,14 +441,32 @@ router.get('/timer', async (req, res) => {
     
     timers.forEach(timer => {
       const duration = timer.duration / 60; // تبدیل به دقیقه
+      console.log('Processing timer:', {
+        sessionType: timer.sessionType,
+        duration: duration,
+        originalDuration: timer.duration
+      });
+      
       if (timer.sessionType === 'work') {
         stats.totalWork += duration;
-        stats.totalSeconds += timer.duration; // اضافه کردن به totalSeconds
+        stats.totalSeconds += timer.duration; // فقط زمان مطالعه در totalSeconds
+        console.log('Added to totalWork and totalSeconds:', duration, 'minutes');
       } else if (timer.sessionType === 'break') {
         stats.totalBreak += duration;
+        console.log('Added to totalBreak only:', duration, 'minutes');
+        // زمان استراحت در totalSeconds محاسبه نمی‌شود
       } else if (timer.sessionType === 'longBreak') {
         stats.totalLongBreak += duration;
+        console.log('Added to totalLongBreak only:', duration, 'minutes');
+        // زمان استراحت طولانی در totalSeconds محاسبه نمی‌شود
       }
+    });
+    
+    console.log('Final stats:', {
+      totalWork: stats.totalWork,
+      totalBreak: stats.totalBreak,
+      totalLongBreak: stats.totalLongBreak,
+      totalSeconds: stats.totalSeconds
     });
     
     res.json(stats);
@@ -493,18 +511,36 @@ router.get('/timer/range', async (req, res) => {
     
     timers.forEach(timer => {
       const duration = timer.duration / 60; // تبدیل به دقیقه
+      console.log('Range Processing timer:', {
+        sessionType: timer.sessionType,
+        duration: duration,
+        originalDuration: timer.duration,
+        date: timer.date
+      });
+      
       if (timer.sessionType === 'work') {
         stats.totalWork += duration;
-        stats.totalSeconds += timer.duration;
+        stats.totalSeconds += timer.duration; // فقط زمان مطالعه در totalSeconds
         // اضافه کردن تاریخ به مجموعه روزهای دارای مطالعه
         studyDates.add(timer.date);
+        console.log('Range: Added to totalWork and totalSeconds:', duration, 'minutes');
       } else if (timer.sessionType === 'break') {
         stats.totalBreak += duration;
-        stats.totalSeconds += timer.duration;
+        console.log('Range: Added to totalBreak only:', duration, 'minutes');
+        // زمان استراحت در totalSeconds محاسبه نمی‌شود
       } else if (timer.sessionType === 'longBreak') {
         stats.totalLongBreak += duration;
-        stats.totalSeconds += timer.duration;
+        console.log('Range: Added to totalLongBreak only:', duration, 'minutes');
+        // زمان استراحت طولانی در totalSeconds محاسبه نمی‌شود
       }
+    });
+    
+    console.log('Range Final stats:', {
+      totalWork: stats.totalWork,
+      totalBreak: stats.totalBreak,
+      totalLongBreak: stats.totalLongBreak,
+      totalSeconds: stats.totalSeconds,
+      daysWithStudy: studyDates.size
     });
     
     // اضافه کردن تعداد روزهای دارای مطالعه
