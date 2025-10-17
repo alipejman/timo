@@ -6,7 +6,7 @@ A comprehensive productivity app with Pomodoro timer, mood tracking, and task ma
 
 - **Pomodoro Timer**: 25-minute work sessions with break tracking
 - **Mood Tracker**: Daily mood logging with 7-day analytics
-- **Task Management**: Create and manage daily tasks
+- **Checklist Management**: Create and manage daily tasks
 - **Dashboard**: Overview of daily progress
 - **Persian Calendar**: Jalali date support
 - **Responsive Design**: Works on all devices
@@ -109,7 +109,7 @@ Visit `http://localhost:3000` to see the app.
 
 1. **Timer**: Start a 25-minute Pomodoro session
 2. **Mood**: Log your daily mood and energy level
-3. **Tasks**: Create and manage daily tasks
+3. **Checklist**: Create and manage daily tasks
 4. **Dashboard**: View your daily progress
 
 ## 🔧 Development
@@ -120,7 +120,7 @@ timo/
 ├── config/
 │   └── database.js          # MongoDB connection
 ├── models/
-│   ├── Task.js             # Task model
+│   ├── (Task.js removed)   # Using Checklist instead
 │   ├── Timer.js            # Timer model
 │   ├── Checklist.js        # Checklist model
 │   └── Mood.js             # Mood model
@@ -130,7 +130,7 @@ timo/
 │   ├── index.html          # Dashboard
 │   ├── pomodoro.html       # Timer page
 │   ├── mood.html           # Mood tracker
-│   └── checklist.html      # Task manager
+│   └── checklist.html      # Checklist manager
 ├── server.js               # Main server file
 ├── package.json            # Dependencies
 ├── Dockerfile              # Docker configuration

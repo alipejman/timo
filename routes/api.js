@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const Task = require('../models/Task');
+// Task model removed
 const Timer = require('../models/Timer');
 const Checklist = require('../models/Checklist');
 const Mood = require('../models/Mood');
@@ -9,60 +9,7 @@ const { authenticateToken } = require('../middleware/auth');
 // Apply authentication to all routes
 router.use(authenticateToken);
 
-// Routes برای Tasks
-// دریافت همه تسک‌ها
-router.get('/tasks', async (req, res) => {
-  try {
-    const tasks = await Task.find({ user: req.user._id }).sort({ createdAt: -1 });
-    res.json(tasks);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// ایجاد تسک جدید
-router.post('/tasks', async (req, res) => {
-  try {
-    const task = new Task({
-      ...req.body,
-      user: req.user._id
-    });
-    await task.save();
-    res.status(201).json(task);
-  } catch (error) {
-    res.status(400).json({ error: error.message });
-  }
-});
-
-// به‌روزرسانی تسک
-router.put('/tasks/:id', async (req, res) => {
-  try {
-    const task = await Task.findOneAndUpdate(
-      { _id: req.params.id, user: req.user._id }, 
-      req.body, 
-      { new: true }
-    );
-    if (!task) {
-      return res.status(404).json({ error: 'تسک پیدا نشد' });
-    }
-    res.json(task);
-  } catch (error) {
-    res.status(400).json({ error: error.message });
-  }
-});
-
-// حذف تسک
-router.delete('/tasks/:id', async (req, res) => {
-  try {
-    const task = await Task.findOneAndDelete({ _id: req.params.id, user: req.user._id });
-    if (!task) {
-      return res.status(404).json({ error: 'تسک پیدا نشد' });
-    }
-    res.json({ message: 'تسک حذف شد' });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
+// Task routes removed - using Checklist instead
 
 // Routes برای Timer
 // ذخیره جلسه تایمر
@@ -105,7 +52,8 @@ router.get('/checklist', async (req, res) => {
       checklist = new Checklist({ 
         user: req.user._id,
         date, 
-        items: [] 
+        items: [],
+        postponed: []
       });
       await checklist.save();
     }
@@ -119,7 +67,7 @@ router.get('/checklist', async (req, res) => {
 // ذخیره چک‌لیست
 router.post('/checklist/save', async (req, res) => {
   try {
-    const { date, items } = req.body;
+    const { date, items, postponed } = req.body;
     
     if (!date) {
       return res.status(400).json({ error: 'تاریخ الزامی است' });
@@ -129,7 +77,7 @@ router.post('/checklist/save', async (req, res) => {
     let checklist = await Checklist.findOne({ user: req.user._id, date });
     
     if (!checklist) {
-      checklist = new Checklist({ user: req.user._id, date, items: [] });
+      checklist = new Checklist({ user: req.user._id, date, items: [], postponed: [] });
     }
     
     // تبدیل آیتم‌ها از فرمت JavaScript به فرمت دیتابیس
@@ -140,9 +88,68 @@ router.post('/checklist/save', async (req, res) => {
     
     // به‌روزرسانی آیتم‌ها
     checklist.items = dbItems;
+    checklist.postponed = (postponed || []).map(p => ({
+      text: p.text || '',
+      fromDate: p.fromDate || ''
+    }));
     await checklist.save();
     
     res.json(checklist);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// موکول کردن کارهای انجام‌نشده به فردا (عملیات دستی/سرویس شب)
+router.post('/checklist/postponeToTomorrow', async (req, res) => {
+  try {
+    const { date } = req.body; // تاریخ شمسی روز جاری
+    if (!date) return res.status(400).json({ error: 'تاریخ الزامی است' });
+
+    // یافتن چک‌لیست امروز
+    const todayChecklist = await Checklist.findOne({ user: req.user._id, date });
+    if (!todayChecklist) {
+      return res.json({ moved: 0 });
+    }
+
+    // کارهای انجام‌نشده امروز
+    const undone = (todayChecklist.items || []).filter(i => !i.completed);
+    if (undone.length === 0) return res.json({ moved: 0 });
+
+    // تاریخ فردا (شمسی) - بدون moment-jalaali اینجا به صورت ورودی تکیه می‌کنیم
+    const tomorrow = req.body.tomorrow;
+    if (!tomorrow) return res.status(400).json({ error: 'tomorrow الزامی است (jYYYY/jMM/jDD)' });
+
+    // یافتن/ایجاد چک‌لیست فردا
+    let tomorrowChecklist = await Checklist.findOne({ user: req.user._id, date: tomorrow });
+    if (!tomorrowChecklist) {
+      tomorrowChecklist = new Checklist({ user: req.user._id, date: tomorrow, items: [], postponed: [] });
+    }
+
+    // افزودن به postponed فردا و همچنین به items فردا
+    const moved = undone.map(u => ({ text: u.text, fromDate: date }));
+    tomorrowChecklist.postponed = [...(tomorrowChecklist.postponed || []), ...moved];
+    
+    // افزودن کارهای موکول شده به لیست اصلی فردا
+    const postponedItems = undone.map(u => ({
+      text: u.text,
+      completed: false,
+      defKey: `postponed_${Date.now()}_${Math.random()}`
+    }));
+    tomorrowChecklist.items = [...(tomorrowChecklist.items || []), ...postponedItems];
+    
+    // حذف کارهای موکول شده از items امروز و اضافه به postponed امروز
+    todayChecklist.items = (todayChecklist.items || []).filter(i => 
+      !undone.some(u => u.text === i.text && !i.completed)
+    );
+    
+    // اضافه کردن کارهای موکول شده به postponed امروز
+    todayChecklist.postponed = [...(todayChecklist.postponed || []), ...moved];
+    
+    await tomorrowChecklist.save();
+    await todayChecklist.save();
+
+    res.json({ moved: moved.length });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -172,6 +179,47 @@ router.put('/checklist/item/:itemId', async (req, res) => {
     
     await checklist.save();
     res.json(item);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// حذف آیتم از چک‌لیست
+router.delete('/checklist/:date/item', async (req, res) => {
+  try {
+    const { date } = req.params;
+    const { itemId, text } = req.body;
+    
+    if (!itemId && !text) {
+      return res.status(400).json({ error: 'شناسه آیتم یا متن الزامی است' });
+    }
+    
+    let checklist = await Checklist.findOne({ user: req.user._id, date });
+    if (!checklist) {
+      return res.status(404).json({ error: 'چک‌لیست پیدا نشد' });
+    }
+    
+    // پیدا کردن آیتم برای حذف
+    let itemToDelete = null;
+    if (itemId) {
+      itemToDelete = checklist.items.find(item => item._id.toString() === itemId);
+    } else if (text) {
+      itemToDelete = checklist.items.find(item => item.text === text);
+    }
+    
+    if (!itemToDelete) {
+      return res.status(404).json({ error: 'آیتم پیدا نشد' });
+    }
+    
+    // حذف از items و اضافه به deleted
+    checklist.items = checklist.items.filter(item => item !== itemToDelete);
+    checklist.deleted = [...(checklist.deleted || []), {
+      text: itemToDelete.text,
+      deletedAt: new Date()
+    }];
+    
+    await checklist.save();
+    res.json({ message: 'آیتم حذف شد', deleted: itemToDelete.text });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

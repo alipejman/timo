@@ -436,7 +436,7 @@
 
   function setBg(isStudy){ document.body.style.background = isStudy ? 'linear-gradient(135deg, #f6d365 0%, #fda085 100%)' : 'linear-gradient(135deg, #a1c4fd 0%, #c2e9fb 100%)'; }
   function updateTimer(){ const m=Math.floor(remaining/60), s=remaining%60; document.getElementById('timer').textContent = `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`; }
-  function beep(freq=800, dur=300){
+  function beep(freq=800, dur=300, isFinalBeep=false){
     try {
       // فعال کردن AudioContext در موبایل
       const ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -444,10 +444,10 @@
       // اگر AudioContext suspended است، آن را resume کن
       if (ctx.state === 'suspended') {
         ctx.resume().then(() => {
-          playBeep(ctx, freq, dur);
+          playBeep(ctx, freq, dur, isFinalBeep);
         });
       } else {
-        playBeep(ctx, freq, dur);
+        playBeep(ctx, freq, dur, isFinalBeep);
       }
     } catch (e) {
       console.log('Audio not supported:', e);
@@ -458,14 +458,15 @@
     }
   }
   
-  function playBeep(ctx, freq, dur) {
+  function playBeep(ctx, freq, dur, isFinalBeep=false) {
     const o = ctx.createOscillator();
     const g = ctx.createGain();
     o.connect(g);
     g.connect(ctx.destination);
     o.type = 'sine';
     o.frequency.value = freq;
-    g.gain.value = 0.1;
+    // افزایش volume برای صدای نهایی
+    g.gain.value = isFinalBeep ? 0.3 : 0.1;
     o.start();
     o.stop(ctx.currentTime + dur/1000);
   }
@@ -477,8 +478,8 @@
       if(remaining>0){
         remaining--; updateTimer();
         accSeconds++;
-        if(remaining<=3 && remaining>0) beep(900,180);
-        if(remaining===0) beep(600,600);
+        if(remaining<=3 && remaining>0) beep(900,180, false);
+        if(remaining===0) beep(1200,800, true);
       } else {
         clearInterval(interval); isRunning=false;
         if(isStudy){
@@ -592,7 +593,7 @@
     const mFrom=moment.from(DMYtoYMD(from),'fa','jYYYY/jMM/jDD');
     const mTo  =moment.from(DMYtoYMD(to)  ,'fa','jYYYY/jMM/jDD');
     const today=moment();
-    if(mFrom.isAfter(today) || mTo.isAfter(today)) return null;
+    // حذف چک تاریخ آینده از اینجا - در کد اصلی چک می‌شود
     if(mTo.isBefore(mFrom)) return null;
     return {mFrom,mTo};
   }
@@ -601,6 +602,44 @@
   document.getElementById('btnRange').onclick=async()=>{
     const from=document.getElementById('fromDate').value.trim(), to=document.getElementById('toDate').value.trim();
     document.getElementById('errBox').style.display='none';
+    
+    // چک کردن تاریخ آینده قبل از validateRange
+    const today = moment().format('jYYYY/jMM/jDD');
+    console.log('Today:', today);
+    console.log('From input:', from, 'To input:', to);
+    
+    // تبدیل تاریخ از DD/MM/YYYY به YYYY/MM/DD برای مقایسه
+    const convertToJalali = (dateStr) => {
+      const parts = dateStr.split('/');
+      if (parts.length === 3) {
+        return `${parts[2]}/${parts[1]}/${parts[0]}`;
+      }
+      return dateStr;
+    };
+    
+    const startJalali = convertToJalali(from);
+    const endJalali = convertToJalali(to);
+    const todayJalali = moment().format('jYYYY/jMM/jDD');
+    
+    console.log('Start jalali:', startJalali, 'End jalali:', endJalali);
+    console.log('Today jalali:', todayJalali);
+    
+    // مقایسه مستقیم رشته‌های تاریخ شمسی
+    const isStartFuture = startJalali > todayJalali;
+    const isEndFuture = endJalali > todayJalali;
+    
+    console.log('Start > Today (string):', isStartFuture, 'End > Today (string):', isEndFuture);
+    
+    if (isStartFuture || isEndFuture) {
+      console.log('Future date detected, showing error');
+      showErr('❌ نمی‌توانید تاریخ آینده را انتخاب کنید! لطفاً فقط تاریخ‌های گذشته و امروز را انتخاب کنید.');
+      document.getElementById('cards').style.display='none';
+      document.getElementById('dailyBox').style.display='none';
+      return;
+    }
+    
+    console.log('Date validation passed, continuing...');
+    
     const v=validateRange(from,to); if(!v){ showErr(ERR_TXT); document.getElementById('cards').style.display='none'; document.getElementById('dailyBox').style.display='none'; return; }
 
     // تبدیل فرمت تاریخ
@@ -664,6 +703,44 @@
     const from=document.getElementById('fromDate').value.trim(), to=document.getElementById('toDate').value.trim();
     console.log('Date inputs for daily:', { from, to });
     document.getElementById('errBox').style.display='none';
+    
+    // چک کردن تاریخ آینده قبل از validateRange
+    const today = moment().format('jYYYY/jMM/jDD');
+    console.log('Today for daily:', today);
+    console.log('From input daily:', from, 'To input daily:', to);
+    
+    // تبدیل تاریخ از DD/MM/YYYY به YYYY/MM/DD برای مقایسه
+    const convertToJalali = (dateStr) => {
+      const parts = dateStr.split('/');
+      if (parts.length === 3) {
+        return `${parts[2]}/${parts[1]}/${parts[0]}`;
+      }
+      return dateStr;
+    };
+    
+    const startJalali = convertToJalali(from);
+    const endJalali = convertToJalali(to);
+    const todayJalali = moment().format('jYYYY/jMM/jDD');
+    
+    console.log('Daily Start jalali:', startJalali, 'End jalali:', endJalali);
+    console.log('Daily Today jalali:', todayJalali);
+    
+    // مقایسه مستقیم رشته‌های تاریخ شمسی
+    const isStartFuture = startJalali > todayJalali;
+    const isEndFuture = endJalali > todayJalali;
+    
+    console.log('Daily Start > Today (string):', isStartFuture, 'End > Today (string):', isEndFuture);
+    
+    if (isStartFuture || isEndFuture) {
+      console.log('Future date detected in daily view, showing error');
+      showErr('❌ نمی‌توانید تاریخ آینده را انتخاب کنید! لطفاً فقط تاریخ‌های گذشته و امروز را انتخاب کنید.');
+      document.getElementById('cards').style.display='none';
+      document.getElementById('dailyBox').style.display='none';
+      return;
+    }
+    
+    console.log('Daily date validation passed, continuing...');
+    
     const v=validateRange(from,to); if(!v){ showErr(ERR_TXT); document.getElementById('dailyBox').style.display='none'; document.getElementById('cards').style.display='none'; return; }
 
     // تبدیل فرمت تاریخ
@@ -732,8 +809,8 @@
     document.getElementById('dailyBox').style.display='block';
   };
 
-  // گزارش‌گیری - اضافه شده
-  function setupReportListener() {
+  // setupReportListener حذف شد - از کد قدیمی btnRange استفاده می‌شود
+  function setupReportListener_DISABLED() {
     console.log('Setting up report listener...');
     const btnRange = document.getElementById('btnRange');
     console.log('btnRange element:', btnRange);
@@ -751,6 +828,8 @@
       alert('لطفاً تاریخ شروع و پایان را انتخاب کنید');
       return;
     }
+    
+    // چک تاریخ آینده قبلاً انجام شده
     
     // تبدیل فرمت تاریخ از DD/MM/YYYY به YYYY/MM/DD
     const convertDate = (dateStr) => {
@@ -902,9 +981,9 @@
     }
   }
   
-  // اجرای فوری و با تاخیر
-  setupReportListener();
-  setTimeout(setupReportListener, 1000);
+  // setupReportListener غیرفعال شد
+  // setupReportListener();
+  // setTimeout(setupReportListener, 1000);
 </script>
 
 <script>

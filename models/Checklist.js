@@ -27,6 +27,31 @@ const checklistSchema = new mongoose.Schema({
       default: Date.now
     }
   }],
+  // Tasks that were postponed INTO this day from previous days
+  postponed: [{
+    text: {
+      type: String,
+      required: true,
+      trim: true
+    },
+    fromDate: {
+      type: String,
+      required: false,
+      trim: true
+    }
+  }],
+  // Tasks that were deleted from this day
+  deleted: [{
+    text: {
+      type: String,
+      required: true,
+      trim: true
+    },
+    deletedAt: {
+      type: Date,
+      default: Date.now
+    }
+  }],
   createdAt: {
     type: Date,
     default: Date.now

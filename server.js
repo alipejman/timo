@@ -13,7 +13,7 @@ app.use(express.json());
 app.post('/api/clear-database', async (req, res) => {
   try {
     const User = require('./models/User');
-    const Task = require('./models/Task');
+    // Task model removed
     const Timer = require('./models/Timer');
     const Checklist = require('./models/Checklist');
     const Mood = require('./models/Mood');
@@ -21,7 +21,7 @@ app.post('/api/clear-database', async (req, res) => {
     console.log('Clearing database...');
     
     await User.deleteMany({});
-    await Task.deleteMany({});
+    // Task collection removed
     await Timer.deleteMany({});
     await Checklist.deleteMany({});
     await Mood.deleteMany({});

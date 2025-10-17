@@ -350,13 +350,23 @@
   };
   
   const readDeleted = async (ymd=todayKey()) => {
-    // در حال حاضر حذف‌شده‌ها در API ذخیره نمی‌شوند
-    return [];
+    try {
+      const response = await apiGet(ymd);
+      return response && response.deleted ? response.deleted : [];
+    } catch (error) {
+      console.error('Error reading deleted from API:', error);
+      return [];
+    }
   };
   
   const readPostponed = async (ymd=todayKey()) => {
-    // در حال حاضر موکول‌شده‌ها در API ذخیره نمی‌شوند
-    return [];
+    try {
+      const response = await apiGet(ymd);
+      return response && response.postponed ? response.postponed : [];
+    } catch (error) {
+      console.error('Error reading postponed from API:', error);
+      return [];
+    }
   };
   
   // توابع localStorage برای سازگاری (غیرفعال)
@@ -379,7 +389,32 @@
       save();refreshProgress();updateEmptyHint();
     });
     input.addEventListener('input',()=>{debounceSave();updateEmptyHint();});
-    del.addEventListener('click',()=>{const item={id:li.dataset.id,text:input.value.trim(),done:cb.checked === true}; addDeleted(item); li.remove(); save(); refreshProgress(); updateEmptyHint();});
+    del.addEventListener('click', async () => {
+      const item = {id: li.dataset.id, text: input.value.trim(), done: cb.checked === true};
+      
+      try {
+        // حذف از API
+        const headers = window.AuthUtils.getAuthHeaders();
+        if (headers) {
+          const response = await fetch(`/api/checklist/${encodeURIComponent(todayKey())}/item`, {
+            method: 'DELETE',
+            headers: { ...headers, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ itemId: li.dataset.id, text: input.value.trim() })
+          });
+          
+          if (!response.ok) {
+            console.error('Failed to delete item from API');
+          }
+        }
+      } catch (error) {
+        console.error('Error deleting item:', error);
+      }
+      
+      li.remove();
+      // فقط UI را به‌روزرسانی کن، save() صدا نزن
+      refreshProgress();
+      updateEmptyHint();
+    });
     return li;
   }
   const collect=()=>{
@@ -845,6 +880,8 @@
     refreshProgress();
     console.log('Test item added, no auto-sync');
   };
+
+  // سیستم موکول فقط در dashboard نمایش داده می‌شود
 
   // هیچ سینک خودکار نداشته باشیم
 })();

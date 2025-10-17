@@ -151,8 +151,8 @@
     .card {
       width: 100%;
       max-width: 350px;
-      height: 180px;
-      padding: 16px 12px 40px;
+      height: 200px;
+      padding: 16px 12px 50px;
     }
     
     .card img {
@@ -168,11 +168,16 @@
     .mini-footer {
       font-size: 12px;
       padding: 6px 8px;
+      position: absolute;
+      left: 8px;
+      right: 8px;
+      bottom: 8px;
     }
     
-    #logoutBtn {
+    #dateDisplay {
       font-size: 12px;
       padding: 6px 12px;
+      min-width: 100px;
     }
     
     #userIcon {
@@ -208,8 +213,8 @@
     .card {
       width: 100%;
       max-width: 300px;
-      height: 160px;
-      padding: 12px 8px 35px;
+      height: 180px;
+      padding: 12px 8px 45px;
     }
     
     .card img {
@@ -222,10 +227,25 @@
       font-size: 14px;
     }
     
+    .mini-footer {
+      font-size: 11px;
+      padding: 5px 6px;
+      position: absolute;
+      left: 6px;
+      right: 6px;
+      bottom: 6px;
+    }
+    
     #userIcon {
       width: 30px !important;
       height: 30px !important;
       font-size: 14px !important;
+    }
+    
+    #dateDisplay {
+      font-size: 11px;
+      padding: 5px 10px;
+      min-width: 90px;
     }
   }
 </style>
@@ -239,10 +259,10 @@
 </head>
 <body>
 
-<div style="display: flex; justify-content: space-between; align-items: center; width: 100%; max-width: 600px; margin-bottom: 20px; padding-top: 20px;">
-  <a href="profile.html" id="userIcon" style="background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3); color: white; padding: 8px 12px; border-radius: 50%; cursor: pointer; font-size: 18px; text-decoration: none; display: flex; align-items: center; justify-content: center; width: 40px; height: 40px;" title="پروفایل کاربر">👤</a>
+<div style="display: flex; justify-content: center; align-items: center; width: 100%; max-width: 600px; margin-bottom: 20px; padding-top: 20px; position: relative;">
+  <a href="profile.html" id="userIcon" style="background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3); color: white; padding: 8px 12px; border-radius: 50%; cursor: pointer; font-size: 18px; text-decoration: none; display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; position: absolute; left: 0;" title="پروفایل کاربر">👤</a>
   <h1 style="margin: 0;">Timo ⏰</h1>
-  <button id="logoutBtn" style="background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3); color: white; padding: 8px 16px; border-radius: 20px; cursor: pointer; font-size: 14px;">خروج</button>
+  <div id="dateDisplay" style="background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3); color: white; padding: 8px 16px; border-radius: 20px; font-size: 14px; font-weight: 600; text-align: center; min-width: 120px; position: absolute; right: 0;">📅</div>
 </div>
 <div class="subtitle">دستیاری برای رسیدن به هدف‌های تو 🎯</div>
 
@@ -446,10 +466,312 @@
     }
   })();
 
-  // Logout functionality
-  document.getElementById('logoutBtn').addEventListener('click', () => {
-    window.AuthUtils.logout();
-  });
+  // سیستم موکول خودکار - چک کردن کارهای انجام‌نشده
+  async function checkAndPostponeTasks() {
+    try {
+      const headers = window.AuthUtils.getAuthHeaders();
+      if (!headers) { 
+        console.log('No auth headers, skip postpone check');
+        return; 
+      }
+      
+      const now = moment();
+      const todayJ = now.format('jYYYY/jMM/jDD');
+      const yesterdayJ = now.clone().subtract(1, 'day').format('jYYYY/jMM/jDD');
+      const tomorrowJ = todayJ; // کارهای دیروز به امروز منتقل می‌شوند
+      
+      // چک کردن آیا امروز قبلاً چک شده یا نه
+      const lastCheckKey = `postpone_check_${todayJ}`;
+      const lastCheck = localStorage.getItem(lastCheckKey);
+      if (lastCheck) {
+        console.log('Postpone already checked today');
+        return;
+      }
+      
+      // دریافت کارهای انجام‌نشده دیروز
+      const yesterdayRes = await fetch(`/api/checklist?date=${encodeURIComponent(yesterdayJ)}&t=${Date.now()}`, { headers });
+      if (!yesterdayRes.ok) {
+        console.log('Failed to get yesterday checklist');
+        return;
+      }
+      
+      const yesterdayData = await yesterdayRes.json();
+      console.log('Yesterday data from API:', yesterdayData);
+      console.log('Yesterday items:', yesterdayData.items);
+      
+      const undoneTasks = (yesterdayData.items || []).filter(i => !i.completed);
+      console.log('Undone tasks:', undoneTasks);
+      console.log('Task texts:', undoneTasks.map(t => t.text));
+      
+      if (undoneTasks.length === 0) {
+        console.log('No undone tasks to postpone');
+        localStorage.setItem(lastCheckKey, 'checked');
+        return;
+      }
+      
+      // نمایش پاپ‌آپ responsive برای تأیید موکول
+      const yesterdayPersian = moment(yesterdayJ, 'jYYYY/jMM/jDD').locale('fa').format('jD jMMMM');
+      const todayPersian = moment(todayJ, 'jYYYY/jMM/jDD').locale('fa').format('jD jMMMM');
+      
+      // ایجاد پاپ‌آپ responsive با تم پروژه
+      const modal = document.createElement('div');
+      modal.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.6);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 10000;
+        font-family: 'Vazirmatn', sans-serif;
+      `;
+      
+      // جلوگیری از بستن پاپ‌آپ با کلیک روی بک‌گراند
+      modal.addEventListener('click', (e) => {
+        console.log('Modal click detected');
+        console.log('Target element:', e.target);
+        console.log('Target tagName:', e.target.tagName);
+        console.log('Target className:', e.target.className);
+        console.log('Target id:', e.target.id);
+        console.log('Is target modal?', e.target === modal);
+        console.log('Is target modalContent?', e.target === modalContent);
+        console.log('Is target contentDiv?', e.target === contentDiv);
+        
+        // فقط اگر روی خود modal کلیک شده (نه روی محتوا)
+        if (e.target === modal) {
+          console.log('Click on modal background - preventing close');
+          // هیچ کاری نکن - پاپ‌آپ بسته نمی‌شود
+          return;
+        }
+        console.log('Click on content - stopping propagation');
+        e.stopPropagation();
+      });
+      
+      const modalContent = document.createElement('div');
+      modalContent.style.cssText = `
+        background: linear-gradient(135deg, #f6d365, #fda085);
+        border-radius: 28px;
+        padding: 32px;
+        max-width: 520px;
+        width: 100%;
+        max-height: 85vh;
+        overflow-y: auto;
+        box-shadow: 0 25px 50px rgba(0, 0, 0, 0.4);
+        text-align: center;
+        color: #2a2a2a;
+        margin: 20px;
+        position: relative;
+      `;
+      
+      // Responsive styles for mobile
+      if (window.innerWidth <= 768) {
+        modalContent.style.cssText += `
+          padding: 20px 16px;
+          border-radius: 16px;
+          margin: 0 5px;
+          max-height: 90vh;
+        `;
+        
+        // کاهش فونت‌سایزها برای موبایل
+        titleDiv.style.cssText += 'font-size: 18px; margin-bottom: 14px;';
+        descDiv.style.cssText += 'font-size: 14px; margin-bottom: 20px;';
+        
+        // کاهش فونت‌سایز سوال و دکمه‌ها
+        questionDiv.style.cssText += 'font-size: 14px; margin-bottom: 20px;';
+        
+        // کاهش فونت‌سایز متن کارها
+        const taskTexts = contentDiv.querySelectorAll('span[style*="font-size: 16px"]');
+        taskTexts.forEach(span => {
+          span.style.fontSize = '14px';
+        });
+        
+        // کاهش فونت‌سایز و padding دکمه‌ها
+        confirmBtn.style.cssText += 'font-size: 14px; padding: 12px 20px; min-width: 120px;';
+        cancelBtn.style.cssText += 'font-size: 14px; padding: 12px 20px; min-width: 120px;';
+      }
+      
+      // جلوگیری از بستن پاپ‌آپ با کلیک روی محتوا
+      modalContent.addEventListener('click', (e) => {
+        console.log('ModalContent click detected');
+        console.log('Content target:', e.target);
+        e.stopPropagation();
+      });
+      
+      // ایجاد محتوای پاپ‌آپ با DOM elements
+      const contentDiv = document.createElement('div');
+      contentDiv.style.cssText = `
+        background: transparent;
+        border-radius: 20px;
+        padding: 24px;
+      `;
+      
+      // عنوان
+      const titleDiv = document.createElement('div');
+      titleDiv.style.cssText = 'font-size: 28px; margin-bottom: 20px; font-weight: 800; color: #ffffff; text-shadow: 0 2px 4px rgba(0,0,0,0.3);';
+      titleDiv.textContent = '📋 یادآوری تسک‌ها';
+      contentDiv.appendChild(titleDiv);
+      
+      // توضیحات
+      const descDiv = document.createElement('div');
+      descDiv.style.cssText = 'font-size: 18px; margin-bottom: 24px; color: #ffffff; line-height: 1.6; text-shadow: 0 1px 2px rgba(0,0,0,0.3);';
+      descDiv.innerHTML = `تعداد <strong style="color: #fbbf24;">${undoneTasks.length}</strong> کار انجام‌نشده برای <strong style="color: #a5b4fc;">${yesterdayPersian}</strong> وجود دارد:`;
+      contentDiv.appendChild(descDiv);
+      
+      // لیست کارها
+      const tasksDiv = document.createElement('div');
+      tasksDiv.style.cssText = `
+        background: #f3f4f6;
+        border-radius: 16px;
+        padding: 20px;
+        margin: 24px 0;
+        text-align: right;
+        border: 1px solid #e5e7eb;
+      `;
+      
+      undoneTasks.forEach((task, index) => {
+        const taskDiv = document.createElement('div');
+        taskDiv.style.cssText = `
+          padding: 12px 0;
+          border-bottom: ${index < undoneTasks.length - 1 ? '1px solid #d1d5db' : 'none'};
+          display: flex;
+          align-items: center;
+          gap: 12px;
+        `;
+        
+        const numberSpan = document.createElement('span');
+        numberSpan.style.cssText = `
+          background: #6366f1;
+          color: white;
+          width: 24px;
+          height: 24px;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 12px;
+          font-weight: bold;
+          flex-shrink: 0;
+        `;
+        numberSpan.textContent = index + 1;
+        
+        const textSpan = document.createElement('span');
+        textSpan.style.cssText = 'color: #374151; font-size: 16px; flex: 1;';
+        textSpan.textContent = task.text;
+        
+        taskDiv.appendChild(numberSpan);
+        taskDiv.appendChild(textSpan);
+        tasksDiv.appendChild(taskDiv);
+      });
+      
+      contentDiv.appendChild(tasksDiv);
+      
+      // سوال
+      const questionDiv = document.createElement('div');
+      questionDiv.style.cssText = 'font-size: 16px; margin-bottom: 28px; color: #ffffff; line-height: 1.6; text-shadow: 0 1px 2px rgba(0,0,0,0.3);';
+      questionDiv.innerHTML = `به لیست <strong style="color: #34d399;">${todayPersian}</strong> منتقل شوند؟`;
+      contentDiv.appendChild(questionDiv);
+      
+      // دکمه‌ها
+      const buttonsDiv = document.createElement('div');
+      buttonsDiv.style.cssText = 'display: flex; gap: 16px; justify-content: center; flex-wrap: wrap;';
+      
+      const confirmBtn = document.createElement('button');
+      confirmBtn.id = 'confirmPostpone';
+      confirmBtn.style.cssText = `
+        background: linear-gradient(135deg, #10b981, #059669);
+        color: white;
+        border: none;
+        padding: 14px 28px;
+        border-radius: 999px;
+        font-size: 16px;
+        font-weight: 800;
+        cursor: pointer;
+        min-width: 140px;
+        flex: 1;
+        max-width: 200px;
+        box-shadow: 0 6px 16px rgba(16, 185, 129, 0.3);
+        transition: all 0.2s ease;
+      `;
+      confirmBtn.textContent = '✅ بله، موکول کن';
+      
+      const cancelBtn = document.createElement('button');
+      cancelBtn.id = 'cancelPostpone';
+      cancelBtn.style.cssText = `
+        background: linear-gradient(135deg, #6b7280, #4b5563);
+        color: white;
+        border: none;
+        padding: 14px 28px;
+        border-radius: 999px;
+        font-size: 16px;
+        font-weight: 800;
+        cursor: pointer;
+        min-width: 140px;
+        flex: 1;
+        max-width: 200px;
+        box-shadow: 0 6px 16px rgba(107, 114, 128, 0.3);
+        transition: all 0.2s ease;
+      `;
+      cancelBtn.textContent = '❌ خیر، لغو کن';
+      
+      buttonsDiv.appendChild(confirmBtn);
+      buttonsDiv.appendChild(cancelBtn);
+      contentDiv.appendChild(buttonsDiv);
+      
+      modalContent.appendChild(contentDiv);
+      
+      modal.appendChild(modalContent);
+      document.body.appendChild(modal);
+      
+      // Event listeners
+      document.getElementById('confirmPostpone').addEventListener('click', async () => {
+        document.body.removeChild(modal);
+        try {
+          const res = await fetch('/api/checklist/postponeToTomorrow', {
+            method: 'POST',
+            headers: { ...headers, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ date: yesterdayJ, tomorrow: todayJ })
+          });
+          if (!res.ok) throw new Error('postpone_failed');
+          const data = await res.json();
+          console.log('Postponed undone tasks:', data);
+          alert(`✅ ${data.moved} کار از ${yesterdayPersian} به ${todayPersian} موکول شد!`);
+        } catch (e) {
+          console.error('Postpone error:', e);
+          alert('❌ خطا در موکول کارها: ' + e.message);
+        }
+      });
+      
+      document.getElementById('cancelPostpone').addEventListener('click', () => {
+        document.body.removeChild(modal);
+        console.log('User declined to postpone tasks');
+      });
+      
+      // علامت‌گذاری که امروز چک شده
+      localStorage.setItem(lastCheckKey, 'checked');
+      
+    } catch (e) {
+      console.error('Postpone check error:', e);
+    }
+  }
+  
+  // اجرای چک موکول بلافاصله بعد از لاگین
+  setTimeout(checkAndPostponeTasks, 2000);
+
+  // نمایش تاریخ امروز
+  function updateDateDisplay() {
+    const today = moment().locale('fa');
+    const dateDisplay = document.getElementById('dateDisplay');
+    if (dateDisplay) {
+      dateDisplay.textContent = today.format('jD jMMMM');
+    }
+  }
+  
+  // به‌روزرسانی تاریخ هر دقیقه
+  updateDateDisplay();
+  setInterval(updateDateDisplay, 60000);
 </script>
 
 <script>
