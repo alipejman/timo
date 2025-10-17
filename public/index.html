@@ -481,12 +481,30 @@
       const tomorrowJ = todayJ; // کارهای دیروز به امروز منتقل می‌شوند
       
       // چک کردن آیا امروز قبلاً چک شده یا نه
+      // استفاده از تاریخ امروز برای key
       const lastCheckKey = `postpone_check_${todayJ}`;
       const lastCheck = localStorage.getItem(lastCheckKey);
+      console.log('Checking postpone for today:', todayJ);
+      console.log('Yesterday date:', yesterdayJ);
+      console.log('LastCheckKey:', lastCheckKey);
+      console.log('LastCheck value:', lastCheck);
+      
+      // اگر قبلاً چک شده، چک نکن
       if (lastCheck) {
         console.log('Postpone already checked today');
         return;
       }
+      
+      // چک کردن ساعت - فقط در ساعت 00:00 تا 01:00 چک کن
+      const currentHour = now.hour();
+      console.log('Current hour:', currentHour);
+      if (currentHour > 1) {
+        console.log('Hour > 1, skipping postpone check');
+        return;
+      }
+      
+      // چک کردن اینکه آیا کارهای دیروز وجود دارد یا نه
+      console.log('Fetching yesterday checklist...');
       
       // دریافت کارهای انجام‌نشده دیروز
       const yesterdayRes = await fetch(`/api/checklist?date=${encodeURIComponent(yesterdayJ)}&t=${Date.now()}`, { headers });
@@ -508,6 +526,8 @@
         localStorage.setItem(lastCheckKey, 'checked');
         return;
       }
+      
+      console.log('Found undone tasks, showing popup...');
       
       // نمایش پاپ‌آپ responsive برای تأیید موکول
       const yesterdayPersian = moment(yesterdayJ, 'jYYYY/jMM/jDD').locale('fa').format('jD jMMMM');
