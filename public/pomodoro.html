@@ -323,23 +323,16 @@
     return r.totalSeconds || 0;
   }
   async function apiAddSeconds(seconds, session) {
-    console.log('=== API ADD SECONDS START ===');
-    console.log('Raw parameters:', { seconds, session });
-    console.log('Type of seconds:', typeof seconds);
-    console.log('Value of seconds:', seconds);
+    console.log('=== API ADD SECONDS ===');
+    console.log('Saving:', seconds, 'seconds as WORK time');
     
     const d = todayKey();
     // همیشه sessionType را 'work' تنظیم کن
     const sessionType = 'work';
-    console.log('SessionType set to:', sessionType);
-    console.log('Date set to:', d);
-    console.log('apiAddSeconds called with:', { seconds, session, sessionType });
 
     // بررسی که seconds معتبر باشد
     if (!seconds || seconds <= 0) {
       console.log('❌ No valid seconds to save, skipping API call');
-      console.log('Seconds value:', seconds);
-      console.log('Seconds type:', typeof seconds);
       return;
     }
 
@@ -356,10 +349,7 @@
         sessionType: sessionType 
       };
       
-      console.log('=== SENDING REQUEST ===');
-      console.log('Request data:', requestData);
-      console.log('Request data JSON:', JSON.stringify(requestData));
-      console.log('Headers:', headers);
+      console.log('Sending to server:', requestData);
       
       const response = await fetch('/api/timer/addSeconds', {
         method: 'POST',
@@ -374,7 +364,7 @@
       }
       
       const result = await response.json();
-      console.log('Timer saved successfully:', result);
+      console.log('✅ Timer saved successfully');
       return result;
     } catch (error) {
       console.error('Error in apiAddSeconds:', error);
@@ -472,8 +462,20 @@
   }
 
   function startTimer(){
-    if(isRunning) return; isRunning=true;
-    if(!sessionStart) sessionStart = new Date().toISOString();
+    console.log('=== START TIMER CALLED ===');
+    console.log('Mode:', isStudy ? 'STUDY' : 'BREAK', '| Time:', remaining, 's | Acc:', accSeconds, 's');
+    
+    if(isRunning) {
+      console.log('Timer already running, returning');
+      return;
+    } 
+    
+    isRunning=true;
+    if(!sessionStart) {
+      sessionStart = new Date().toISOString();
+      console.log('New session started');
+    }
+    
     interval=setInterval(()=>{
       if(remaining>0){
         remaining--; updateTimer();
@@ -484,10 +486,13 @@
         clearInterval(interval); isRunning=false;
         if(isStudy){
           // پایان فاز مطالعه ← ذخیره در سرور
+          console.log('=== STUDY PHASE COMPLETED ===');
+          console.log('Saving study time:', accSeconds, 'seconds');
           const endISO = new Date().toISOString();
           apiAddSeconds(accSeconds, null).then(updateTodayLine).catch(err => console.error('Error saving timer:', err));
           sessionStart = null; accSeconds = 0;
 
+          console.log('Switching to BREAK mode');
           isStudy=false; remaining=breakTime; document.getElementById('modeBox').textContent='زمان استراحت ☕'; setBg(false); toast('مطالعه تمام شد، استراحت کن ☕');
           updateTimer();
           // شروع خودکار فاز استراحت
@@ -497,8 +502,13 @@
             }
           }, 2000); // 2 ثانیه تاخیر برای نمایش پیام
         } else {
+          console.log('=== BREAK PHASE COMPLETED ===');
+          console.log('Switching back to STUDY mode - RESETTING accSeconds');
           isStudy=true; remaining=studyTime; document.getElementById('modeBox').textContent='زمان مطالعه 📚'; setBg(true); toast('استراحت تمام شد، برگرد به مطالعه 📚');
+          // مهم: accSeconds را ریست کن تا زمان استراحت ثبت نشود
+          accSeconds = 0;
           updateTimer();
+          console.log('Study mode ready - accSeconds reset to 0');
           // شروع خودکار فاز مطالعه
           setTimeout(() => {
             if (!isRunning) { // اگر کاربر توقف نکرده باشد
@@ -514,15 +524,27 @@
     startTimer();
   };
   document.getElementById('pause').onclick = ()=>{
+    console.log('=== PAUSE BUTTON CLICKED ===');
+    console.log('Mode:', isStudy ? 'STUDY' : 'BREAK', '| Acc:', accSeconds, 's');
+    
     enableAudio();
     clearInterval(interval); 
-    if(!isRunning) return; 
+    if(!isRunning) {
+      console.log('Timer not running, returning');
+      return;
+    } 
     isRunning=false;
+    
     if(isStudy && accSeconds>0){ 
+      console.log('✅ SAVING STUDY TIME ON PAUSE:', accSeconds, 'seconds');
       const endISO=new Date().toISOString(); 
       apiAddSeconds(accSeconds, null).then(updateTodayLine).catch(err => console.error('Error saving timer:', err)); 
+    } else {
+      console.log('❌ NOT SAVING ON PAUSE - Mode:', isStudy ? 'STUDY' : 'BREAK', '| Acc:', accSeconds);
     }
+    
     sessionStart=null; accSeconds=0;
+    console.log('Timer paused and reset');
     toast('تایمر متوقف شد ⏸️');
   };
   document.getElementById('reset').onclick = async ()=>{
@@ -553,12 +575,23 @@
     toast('تایمر ریست شد 🔄');
   };
   document.getElementById('end').onclick = ()=>{
+    console.log('=== END BUTTON CLICKED ===');
+    console.log('Mode:', isStudy ? 'STUDY' : 'BREAK', '| Acc:', accSeconds, 's | Running:', isRunning);
+    
     enableAudio();
     clearInterval(interval); 
+    
     if(isStudy && accSeconds>0){ 
+      console.log('✅ SAVING STUDY TIME:', accSeconds, 'seconds');
       const endISO=new Date().toISOString(); 
       apiAddSeconds(accSeconds, null).then(updateTodayLine).catch(err => console.error('Error saving timer:', err)); 
+    } else {
+      console.log('❌ NOT SAVING - Mode:', isStudy ? 'STUDY' : 'BREAK', '| Acc:', accSeconds);
+      if (!isStudy) {
+        console.log('⚠️  BREAK time discarded:', accSeconds, 'seconds');
+      }
     }
+    
     isRunning=false; sessionStart=null; accSeconds=0;
     
     // برگشت به حالت مطالعه (حتی اگر در استراحت باشیم)
@@ -568,6 +601,8 @@
     setBg(true); 
     updateTimer(); 
     toast('تایم مطالعه ثبت شد ✅');
+    
+    console.log('=== END BUTTON COMPLETE ===');
   };
   updateTimer();
 
