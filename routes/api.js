@@ -267,29 +267,15 @@ router.get('/mood', async (req, res) => {
     
     let mood = await Mood.findOne({ user: req.user._id, date });
     
-    // اگر mood وجود نداشت، یک mood خالی ایجاد کن
+    // اگر mood وجود نداشت، null برگردان (بدون ایجاد mood پیش‌فرض)
     if (!mood) {
-      mood = new Mood({ 
-        user: req.user._id,
-        date, 
-        mood: 'neutral',
+      return res.json({
+        date,
+        mood: null,
         energy: 5,
         activities: [],
         sleep: { hours: 8, quality: 'good' }
       });
-      try {
-        await mood.save();
-      } catch (error) {
-        console.error('Error creating new mood:', error);
-        // اگر خطا در ایجاد mood جدید، یک mood خالی برگردان
-        return res.json({
-          date,
-          mood: 3, // neutral
-          energy: 5,
-          activities: [],
-          sleep: { hours: 8, quality: 'good' }
-        });
-      }
     }
     
     // تبدیل رشته mood به عدد برای سازگاری با JavaScript
